@@ -1,0 +1,608 @@
+{
+  "lot_id": "LOT-2026-001",
+  "package_type": "BGA-256",
+  "application": "consumer",
+  "lot_size": 4000,
+  "current_step": 7,
+  "decision_state": "PASS",
+  "input_files": {
+    "xray_images": [],
+    "aoi_images": [],
+    "reflow_csv": null,
+    "bond_force_log": null,
+    "test_data_csv": null,
+    "material_spec_json": null
+  },
+  "checkpoints": [
+    {
+      "checkpoint_id": 1,
+      "step_name": "DICING",
+      "tools_called": [
+        {
+          "tool_name": "edge_chip_classifier",
+          "tool_type": "deterministic",
+          "output": {
+            "max_chip_um": 22,
+            "fail_count": 0,
+            "spec_um": 50,
+            "standard": "JEDEC JESD22-B116"
+          },
+          "confidence": 0.99,
+          "runtime_ms": 8
+        },
+        {
+          "tool_name": "griffith_fracture",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 0.0,
+            "confidence_interval": [
+              0.0,
+              0.0
+            ],
+            "predicted_lifetime": 0.015228033374445374,
+            "units": "mm",
+            "model_used": "griffith_fracture",
+            "assumptions": [
+              "Material: silicon, K_Ic = 0.83 MPa\u00c2\u00b7\u00e2\u02c6\u0161m",
+              "Plane-strain, mode-I loading assumed",
+              "Semi-elliptical surface crack geometry (edge-crack factor = 1)",
+              "15% scatter on crack size measurement"
+            ],
+            "inputs": {
+              "crack_length_mm": 0.0,
+              "applied_stress_MPa": 120.0,
+              "fracture_toughness_MPa_sqrt_m": 0.83,
+              "material": "silicon",
+              "critical_crack_length_mm": 0.015228033374445374
+            },
+            "citations": [
+              "Griffith AA, 'The phenomena of rupture and flow in solids,' Phil. Trans. R. Soc. Lond. A, 221, 1921, pp. 163-198.",
+              "Chen CP, Leipold MH, 'Fracture toughness of silicon,' Am. Ceram. Soc. Bull. 59(4), 1980, pp. 469-472.",
+              "Lawn BR, Wilshaw TR, 'Fracture of Brittle Solids,' Cambridge Univ. Press, 1975."
+            ]
+          },
+          "confidence": 1.0,
+          "runtime_ms": 1
+        }
+      ],
+      "action": "pass",
+      "reasons": [
+        "All dies within JEDEC JESD22-B116 limits"
+      ],
+      "rule_fired": null,
+      "forward_sim_prediction": null,
+      "cost_avoided_usd": 0.0,
+      "started_at": "2026-05-02T17:06:48.668085Z",
+      "finished_at": "2026-05-02T17:06:48.668085Z"
+    },
+    {
+      "checkpoint_id": 2,
+      "step_name": "DIE_ATTACH",
+      "tools_called": [
+        {
+          "tool_name": "void_thermal_resistance",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 1.899900246931294e-38,
+            "confidence_interval": [
+              2.5961337748653203e-48,
+              9.435838551300006e-30
+            ],
+            "predicted_lifetime": 60.434782608695656,
+            "units": "celsius",
+            "model_used": "void_thermal_resistance",
+            "assumptions": [
+              "Void distribution: dispersed, k=1.0 (Zahn 2002)",
+              "R_th model: R_eff = R_nom / (1 - f_void)^k",
+              "Failure criterion: T_j > 125.0\u00c2\u00b0C (JEDEC JESD51-1)",
+              "Normal scatter sigma=5\u00c2\u00b0C on T_j"
+            ],
+            "inputs": {
+              "void_fraction": 0.08,
+              "void_distribution": "dispersed",
+              "nominal_thermal_resistance_K_per_W": 1.0,
+              "max_junction_temp_C": 125.0,
+              "ambient_temp_C": 55,
+              "power_dissipation_W": 5.0,
+              "effective_R_th": 1.0869565217391304,
+              "predicted_T_j_C": 60.434782608695656
+            },
+            "citations": [
+              "Zahn BA, 'Finite element based solder joint fatigue life predictions,' Proc. SEMI Int. Symposium, 2002.",
+              "JEDEC JESD51-1, 'IC Thermal Measurement Method \u00e2\u20ac\u201d Electrical Test Method,' 1995."
+            ]
+          },
+          "confidence": 1.0,
+          "runtime_ms": 1
+        }
+      ],
+      "action": "pass",
+      "reasons": [
+        "Void ratio 8.0% within JEDEC spec, dispersed pattern"
+      ],
+      "rule_fired": null,
+      "forward_sim_prediction": null,
+      "cost_avoided_usd": 0.0,
+      "started_at": "2026-05-02T17:06:48.668479Z",
+      "finished_at": "2026-05-02T17:06:48.668479Z"
+    },
+    {
+      "checkpoint_id": 3,
+      "step_name": "WIRE_BOND",
+      "tools_called": [
+        {
+          "tool_name": "bond_pull_shear_spc",
+          "tool_type": "deterministic",
+          "output": {
+            "cpk": 1.78,
+            "mean_grams": 12.4,
+            "sigma_drift": 0.6,
+            "western_electric_violations": 0
+          },
+          "confidence": 0.99,
+          "runtime_ms": 3
+        },
+        {
+          "tool_name": "arrhenius_imc",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 3.1321898498698065e-07,
+            "confidence_interval": [
+              1.7026747748191182e-11,
+              0.00042209627771801504
+            ],
+            "predicted_lifetime": 0.017116892451605373,
+            "units": "micrometers",
+            "model_used": "arrhenius_imc",
+            "assumptions": [
+              "Metallurgy: Au-Al, D0=0.0004 cm\u00c2\u00b2/s, Ea=1.0 eV",
+              "Critical brittle thickness = 5.0 \u00c2\u00b5m (Philofsky 1970)",
+              "Parabolic growth law assumed (diffusion-controlled regime)",
+              "P(fail) modeled as normal CDF; sigma = 20% of critical thickness"
+            ],
+            "inputs": {
+              "temperature_history_celsius": [
+                150,
+                175
+              ],
+              "time_at_temperature_hours": [
+                0.5,
+                0.25
+              ],
+              "wire_pad_metallurgy": "Au-Al",
+              "predicted_imc_thickness_um": 0.017116892451605373
+            },
+            "citations": [
+              "Philofsky E, 'Intermetallic formation in gold-aluminum systems,' Solid-State Electronics, 13, 1970, pp. 1391-1399.",
+              "Footner PK, Richards BP, 'Long-term growth of gold-aluminium intermetallics,' J. Mat. Sci. 17, 1982, pp. 2141-2153.",
+              "Harman G, 'Wire Bonding in Microelectronics,' McGraw-Hill, 2nd ed., 1997."
+            ]
+          },
+          "confidence": 0.9997889518696543,
+          "runtime_ms": 1
+        },
+        {
+          "tool_name": "vision_wire_sweep",
+          "tool_type": "ai",
+          "output": {
+            "detected_anomalies": 0,
+            "model": "YOLOv8n-finetuned"
+          },
+          "confidence": 0.91,
+          "runtime_ms": 180
+        }
+      ],
+      "action": "pass",
+      "reasons": [
+        "Cpk 1.78, predicted IMC 0.02\u00c2\u00b5m \u00e2\u20ac\u201d within spec"
+      ],
+      "rule_fired": null,
+      "forward_sim_prediction": null,
+      "cost_avoided_usd": 0.0,
+      "started_at": "2026-05-02T17:06:48.668752Z",
+      "finished_at": "2026-05-02T17:06:48.668752Z"
+    },
+    {
+      "checkpoint_id": 4,
+      "step_name": "MOLDING",
+      "tools_called": [
+        {
+          "tool_name": "wire_sweep",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 4.876526654977132e-07,
+            "confidence_interval": [
+              3.0440878498208165e-11,
+              0.0005738744705832097
+            ],
+            "predicted_lifetime": 0.003103300030244306,
+            "units": "mm",
+            "model_used": "wire_sweep",
+            "assumptions": [
+              "Wire material: gold, E=80 GPa",
+              "Oseen-Burgers distributed drag on slender cylinder (f = 4\u00cf\u20ac\u00ce\u00b7v / ln(2L/d))",
+              "Cantilever Euler-Bernoulli deflection under distributed load",
+              "Failure criterion: \u00ce\u00b4 > 10% of wire span = 0.1500 mm"
+            ],
+            "inputs": {
+              "wire_length_mm": 1.5,
+              "wire_diameter_um": 30.0,
+              "resin_viscosity_Pa_s": 5.0,
+              "fill_velocity_m_per_s": 0.001,
+              "wire_pitch_mm": 0.1,
+              "wire_material": "gold",
+              "predicted_deflection_mm": 0.003103300030244306,
+              "critical_deflection_mm": 0.15000000000000002
+            },
+            "citations": [
+              "Nguyen LT, 'Reactive flow simulation in transfer molding of IC packages,' Proc. 43rd ECTC, 1993, pp. 375-390.",
+              "IPC-7711/7721, 'Rework, Modification, and Repair of Electronic Assemblies,' IPC, 2017."
+            ]
+          },
+          "confidence": 0.9997130627799289,
+          "runtime_ms": 1
+        },
+        {
+          "tool_name": "warpage",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 0.008008381789811574,
+            "confidence_interval": [
+              2.52249037689574e-05,
+              0.22257269540568136
+            ],
+            "predicted_lifetime": 0.13094399999999998,
+            "units": "mm",
+            "model_used": "warpage",
+            "assumptions": [
+              "Stoney bilayer analogy; uniform CTE mismatch across package",
+              "JEDEC warpage limit = 0.2032 mm (8 mils, JESD22-B112A)",
+              "Shadow moir\u00c3\u00a9 measurement uncertainty \u00e2\u2030\u02c6 \u00c2\u00b10.03 mm",
+              "Package modeled as free plate with no constraining underfill"
+            ],
+            "inputs": {
+              "die_cte_ppm_per_C": 2.6,
+              "substrate_cte_ppm_per_C": 15.0,
+              "package_size_mm": 8.0,
+              "peak_reflow_temp_C": 245.0,
+              "room_temp_C": 25.0,
+              "package_thickness_mm": 2.0,
+              "predicted_warpage_mm": 0.13094399999999998
+            },
+            "citations": [
+              "Stoney GG, 'The tension of metallic films deposited by electrolysis,' Proc. R. Soc. Lond. A, 82, 1909, pp. 172-175.",
+              "JEDEC JESD22-B112A, 'Package Warpage Measurement of Surface Mount ICs,' 2009.",
+              "Liu Y et al., 'Thermomechanical modeling of solder joint reliability,' Microelectronics Reliability, 44, 2004, pp. 189-196."
+            ]
+          },
+          "confidence": 0.8887262647490438,
+          "runtime_ms": 1
+        }
+      ],
+      "action": "pass",
+      "reasons": [
+        "Mold cure within fluid-dynamics + stress envelope"
+      ],
+      "rule_fired": null,
+      "forward_sim_prediction": null,
+      "cost_avoided_usd": 0.0,
+      "started_at": "2026-05-02T17:06:48.669251Z",
+      "finished_at": "2026-05-02T17:06:48.669251Z"
+    },
+    {
+      "checkpoint_id": 5,
+      "step_name": "REFLOW",
+      "tools_called": [
+        {
+          "tool_name": "coffin_manson",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 0.0006434710129138763,
+            "confidence_interval": [
+              5.759717253093379e-07,
+              0.057741158831740635
+            ],
+            "predicted_lifetime": 12500.0,
+            "units": "cycles",
+            "model_used": "coffin_manson",
+            "assumptions": [
+              "Alloy: SAC305, n=2.0, C=20000000.0 (Schubert et al. 2003)",
+              "Lognormal scatter sigma=0.5 per IPC-9701A",
+              "Single \u00ce\u201dT amplitude; no mean-temperature correction",
+              "Isothermal fatigue; no creep-fatigue interaction term"
+            ],
+            "inputs": {
+              "delta_t_celsius": 40,
+              "cycles_per_year": 500,
+              "service_life_years": 5,
+              "solder_alloy": "SAC305",
+              "total_cycles": 2500
+            },
+            "citations": [
+              "Schubert A et al., 'Fatigue Life Models for SnAgCu and SnPb Solder Joints,' Proc. 53rd ECTC, 2003, pp. 978-984.",
+              "IPC-9701A, 'Performance Test Methods and Qualification Requirements for Surface Mount Solder Attachments,' IPC, 2006."
+            ]
+          },
+          "confidence": 0.9711297085699924,
+          "runtime_ms": 1
+        },
+        {
+          "tool_name": "blacks_equation",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 3.0016878198623902e-31,
+            "confidence_interval": [
+              3.710426266358635e-40,
+              1.6549793249856176e-23
+            ],
+            "predicted_lifetime": 4477120.470328774,
+            "units": "hours",
+            "model_used": "blacks_equation",
+            "assumptions": [
+              "Material: Cu, n=2.0, Ea=0.9 eV",
+              "Lognormal scatter sigma=0.4 (Lloyd 1991)",
+              "Steady-state current density (no AC component)",
+              "Void nucleation at grain boundaries assumed dominant mechanism"
+            ],
+            "inputs": {
+              "current_density_A_per_cm2": 100000.0,
+              "temperature_celsius": 55,
+              "conductor_material": "Cu",
+              "service_life_years": 5
+            },
+            "citations": [
+              "Black JR, 'Electromigration \u00e2\u20ac\u201d a brief survey and some recent results,' IEEE Trans. Electron Devices, 16(4), pp. 338-347, 1969.",
+              "Lloyd JR, 'Electromigration failure,' J. Appl. Phys. 69(11), 1991."
+            ]
+          },
+          "confidence": 1.0,
+          "runtime_ms": 1
+        },
+        {
+          "tool_name": "pecks_model",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 0.00019951943030024606,
+            "confidence_interval": [
+              1.0767627867717155e-07,
+              0.02898894812199324
+            ],
+            "predicted_lifetime": 257235.7907101536,
+            "units": "hours",
+            "model_used": "pecks_model",
+            "assumptions": [
+              "n=2.7, Ea=0.79 eV (Peck 1986)",
+              "Lognormal scatter sigma=0.5",
+              "Uniform RH and T throughout service life",
+              "MSL 3 safe exposure limit = 168.0 h (J-STD-020E)"
+            ],
+            "inputs": {
+              "relative_humidity_pct": 40,
+              "temperature_celsius": 55,
+              "msl_rating": 3,
+              "service_life_years": 5
+            },
+            "citations": [
+              "Peck DS, 'Comprehensive model for humidity testing correlation,' Proc. 24th IEEE IRPS, 1986, pp. 44-50.",
+              "IPC/JEDEC J-STD-020E, 'Moisture/Reflow Sensitivity Classification for Nonhermetic Packages,' 2014."
+            ]
+          },
+          "confidence": 0.9855055797771427,
+          "runtime_ms": 1
+        },
+        {
+          "tool_name": "warpage",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 7.867718319640825e-06,
+            "confidence_interval": [
+              1.237231715592755e-09,
+              0.00375731880135202
+            ],
+            "predicted_lifetime": 0.07365599999999999,
+            "units": "mm",
+            "model_used": "warpage",
+            "assumptions": [
+              "Stoney bilayer analogy; uniform CTE mismatch across package",
+              "JEDEC warpage limit = 0.2032 mm (8 mils, JESD22-B112A)",
+              "Shadow moir\u00c3\u00a9 measurement uncertainty \u00e2\u2030\u02c6 \u00c2\u00b10.03 mm",
+              "Package modeled as free plate with no constraining underfill"
+            ],
+            "inputs": {
+              "die_cte_ppm_per_C": 2.6,
+              "substrate_cte_ppm_per_C": 15.0,
+              "package_size_mm": 6.0,
+              "peak_reflow_temp_C": 245.0,
+              "room_temp_C": 25.0,
+              "package_thickness_mm": 2.0,
+              "predicted_warpage_mm": 0.07365599999999999
+            },
+            "citations": [
+              "Stoney GG, 'The tension of metallic films deposited by electrolysis,' Proc. R. Soc. Lond. A, 82, 1909, pp. 172-175.",
+              "JEDEC JESD22-B112A, 'Package Warpage Measurement of Surface Mount ICs,' 2009.",
+              "Liu Y et al., 'Thermomechanical modeling of solder joint reliability,' Microelectronics Reliability, 44, 2004, pp. 189-196."
+            ]
+          },
+          "confidence": 0.9981213412179398,
+          "runtime_ms": 1
+        }
+      ],
+      "action": "pass",
+      "reasons": [
+        "Nf 12,500 >> required 2,500; warpage and humidity within spec"
+      ],
+      "rule_fired": null,
+      "forward_sim_prediction": null,
+      "cost_avoided_usd": 0.0,
+      "started_at": "2026-05-02T17:06:48.670874Z",
+      "finished_at": "2026-05-02T17:06:48.670874Z"
+    },
+    {
+      "checkpoint_id": 6,
+      "step_name": "TEST",
+      "tools_called": [
+        {
+          "tool_name": "weibull_fit",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 0.6321205588285577,
+            "confidence_interval": [
+              0.6321205588285577,
+              0.6321205588285577
+            ],
+            "predicted_lifetime": 6683.922877933409,
+            "units": "hours",
+            "model_used": "weibull_fit",
+            "assumptions": [
+              "2-parameter Weibull, location fixed at 0",
+              "MLE fitting via scipy.stats.weibull_min",
+              "Right-censored observations excluded (not full censored-MLE)",
+              "Failure mode classification: wear-out (\u00ce\u00b2=1.31>1) \u00e2\u20ac\u201d aging/fatigue dominant",
+              "90% CI on \u00ce\u00b2 via 200-sample bootstrap"
+            ],
+            "inputs": {
+              "n_failures": 80,
+              "n_censored": 0,
+              "beta": 1.3073686253647212,
+              "eta": 6683.922877933409,
+              "beta_90ci": [
+                1.1685907185293507,
+                1.520482511820905
+              ]
+            },
+            "citations": [
+              "Weibull W, 'A statistical distribution function of wide applicability,' J. Appl. Mechanics, 18, 1951, pp. 293-297.",
+              "Nelson W, 'Applied Life Data Analysis,' Wiley, 1982.",
+              "ReliaSoft, 'Life Data Analysis Reference,' ReliaSoft Corp., 2007."
+            ]
+          },
+          "confidence": 1.0,
+          "runtime_ms": 1392
+        },
+        {
+          "tool_name": "western_electric_spc",
+          "tool_type": "deterministic",
+          "output": {
+            "violations": 0,
+            "rules_evaluated": 4
+          },
+          "confidence": 0.99,
+          "runtime_ms": 2
+        }
+      ],
+      "action": "pass",
+      "reasons": [
+        "Weibull \u00ce\u00b2 = 1.50 indicates healthy random/wear-out distribution"
+      ],
+      "rule_fired": null,
+      "forward_sim_prediction": null,
+      "cost_avoided_usd": 0.0,
+      "started_at": "2026-05-02T17:06:50.063750Z",
+      "finished_at": "2026-05-02T17:06:50.063750Z"
+    },
+    {
+      "checkpoint_id": 7,
+      "step_name": "FINAL_GATE",
+      "tools_called": [
+        {
+          "tool_name": "per_failure_mode_aggregator",
+          "tool_type": "deterministic",
+          "output": {
+            "overall_p_fail": 0.0008431750132288363,
+            "n_modes": 5
+          },
+          "confidence": 1.0,
+          "runtime_ms": 1
+        },
+        {
+          "tool_name": "application_threshold_engine",
+          "tool_type": "deterministic",
+          "output": {
+            "application": "consumer",
+            "threshold": 0.001
+          },
+          "confidence": 1.0,
+          "runtime_ms": 1
+        }
+      ],
+      "action": "pass",
+      "reasons": [
+        "Aggregate P(fail) 0.00084 < threshold 0.00100 for consumer"
+      ],
+      "rule_fired": "verdict_engine: SHIP",
+      "forward_sim_prediction": null,
+      "cost_avoided_usd": 0.0,
+      "started_at": "2026-05-02T17:06:50.063845Z",
+      "finished_at": "2026-05-02T17:06:50.063845Z"
+    }
+  ],
+  "final_decision": {
+    "verdict": "SHIP",
+    "overall_p_fail": 0.0008431750132288363,
+    "threshold_used": 0.001,
+    "failure_modes": [
+      {
+        "failure_mode": "void_thermal_resistance",
+        "physics_model": "void_thermal_resistance",
+        "p_fail": 1.899900246931294e-38,
+        "confidence_interval": [
+          2.5961337748653203e-48,
+          9.435838551300006e-30
+        ],
+        "predicted_lifetime": 60.434782608695656,
+        "units": "celsius"
+      },
+      {
+        "failure_mode": "arrhenius_imc",
+        "physics_model": "arrhenius_imc",
+        "p_fail": 3.1321898498698065e-07,
+        "confidence_interval": [
+          1.7026747748191182e-11,
+          0.00042209627771801504
+        ],
+        "predicted_lifetime": 0.017116892451605373,
+        "units": "micrometers"
+      },
+      {
+        "failure_mode": "coffin_manson",
+        "physics_model": "coffin_manson",
+        "p_fail": 0.0006434710129138763,
+        "confidence_interval": [
+          5.759717253093379e-07,
+          0.057741158831740635
+        ],
+        "predicted_lifetime": 12500.0,
+        "units": "cycles"
+      },
+      {
+        "failure_mode": "blacks_equation",
+        "physics_model": "blacks_equation",
+        "p_fail": 3.0016878198623902e-31,
+        "confidence_interval": [
+          3.710426266358635e-40,
+          1.6549793249856176e-23
+        ],
+        "predicted_lifetime": 4477120.470328774,
+        "units": "hours"
+      },
+      {
+        "failure_mode": "pecks_model",
+        "physics_model": "pecks_model",
+        "p_fail": 0.00019951943030024606,
+        "confidence_interval": [
+          1.0767627867717155e-07,
+          0.02898894812199324
+        ],
+        "predicted_lifetime": 257235.7907101536,
+        "units": "hours"
+      }
+    ],
+    "debate_log": [],
+    "narrative": "Lot LOT-2026-001 (BGA-256, consumer) completed pipeline. Overall P(fail)=0.00084 vs threshold=0.00100. Verdict: SHIP. (Awaiting orchestrator narrative.)",
+    "recommended_actions": [],
+    "pdf_url": null,
+    "total_cost_avoided_usd": 0.0
+  },
+  "created_at": "2026-05-02T17:06:48.667991Z",
+  "updated_at": "2026-05-02T17:06:50.063857Z"
+}
