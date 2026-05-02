@@ -1,0 +1,124 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+
+    // ── DEFAULT BUILD TASK (Ctrl+Shift+B) ─────────────────────────────────
+    {
+      "label": "▶ Start API Server",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python",
+      "args": ["-m", "uvicorn", "main:app", "--reload", "--port", "8001"],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": { "PYTHONPATH": "${workspaceFolder}" }
+      },
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "clear": true
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Started reloader process",
+          "endsPattern": "Application startup complete"
+        }
+      }
+    },
+
+    // ── SETUP TASKS ────────────────────────────────────────────────────────
+    {
+      "label": "📦 Setup: Create venv",
+      "type": "shell",
+      "command": "python3 -m venv venv",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "📦 Setup: Install dependencies",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/pip install -r requirements.txt",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "dependsOn": "📦 Setup: Create venv",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "📦 Setup: Full first-time setup",
+      "dependsOn": [
+        "📦 Setup: Install dependencies",
+        "📚 Build KB Index"
+      ],
+      "group": "none",
+      "dependsOrder": "sequence"
+    },
+
+    // ── KB TASKS ───────────────────────────────────────────────────────────
+    {
+      "label": "📚 Build KB Index",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python kb/embed.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+
+    // ── TEST TASKS ─────────────────────────────────────────────────────────
+    {
+      "label": "🧪 Run All Tests",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python -m pytest tests/test_all.py -v --tb=short",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "🔁 Run Consistency Tests",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python tests/test_consistency.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+
+    // ── DEMO SCENARIO TASKS ────────────────────────────────────────────────
+    {
+      "label": "🟢 Demo: Clean Lot",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python orchestrator/service.py --scenario clean",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "new", "clear": true }
+    },
+    {
+      "label": "🔴 Demo: Early Kill",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python orchestrator/service.py --scenario early_kill",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "new", "clear": true }
+    },
+    {
+      "label": "🟡 Demo: Debate Trigger",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python orchestrator/service.py --scenario debate_trigger",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "new", "clear": true }
+    },
+
+    // ── PDF TASK ───────────────────────────────────────────────────────────
+    {
+      "label": "📄 Generate Sample PDF",
+      "type": "shell",
+      "command": "${workspaceFolder}/venv/bin/python pdf_gen/generator.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "none",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    }
+  ]
+}

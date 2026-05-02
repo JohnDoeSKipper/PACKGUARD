@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PackGuard v2.0 — Orchestrator Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg:       #0e0f11;
+    --surface:  #16181c;
+    --border:   #2a2d35;
+    --border2:  #3a3e4a;
+    --text:     #e8e9eb;
+    --muted:    #7a7f8e;
+    --dim:      #4a4f5c;
+    --green:    #1db37a;
+    --green-bg: #0d2e1f;
+    --amber:    #d4900a;
+    --amber-bg: #2a1e06;
+    --red:      #d94040;
+    --red-bg:   #2a0d0d;
+    --blue:     #3b82f6;
+    --blue-bg:  #0d1a2e;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo span { color: var(--green); }
+  .logo p { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 3px; }
+
+  .nav { padding: 12px 10px; flex: 1; }
+  .nav-section { font-size: 9px; text-transform: uppercase; letter-spacing: .12em;
+                 color: var(--dim); padding: 8px 10px 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; color: var(--muted); transition: all .15s;
+    margin-bottom: 1px;
+  }
+  .nav-item:hover { background: var(--border); color: var(--text); }
+  .nav-item.active { background: var(--green-bg); color: var(--green); }
+  .nav-item .icon { width: 16px; text-align: center; font-size: 12px; }
+
+  .api-status {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+  .api-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+             background: var(--green); margin-right: 5px;
+             animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Main ── */
+  .main { padding: 28px 32px; overflow-y: auto; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 24px; }
+  .page-header h2 { font-size: 20px; font-weight: 700; }
+  .page-header p { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted); margin-bottom: 14px; font-family: var(--mono);
+  }
+
+  /* ── Scenario buttons ── */
+  .scenario-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .scenario-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: left;
+  }
+  .scenario-btn:hover { border-color: var(--border2); transform: translateY(-1px); }
+  .scenario-btn.selected { border-color: var(--blue); background: var(--blue-bg); }
+  .scenario-btn .s-label { font-size: 12px; font-family: var(--mono); color: var(--muted); margin-bottom: 4px; }
+  .scenario-btn .s-name { font-size: 14px; font-weight: 600; }
+  .scenario-btn .s-desc { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  /* ── Lot JSON editor ── */
+  .lot-editor {
+    background: #0a0b0d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text);
+    width: 100%;
+    min-height: 200px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.7;
+  }
+  .lot-editor:focus { border-color: var(--blue); }
+
+  /* ── Run button ── */
+  .run-btn {
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 24px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 12px;
+  }
+  .run-btn:hover { background: #22d68d; transform: translateY(-1px); }
+  .run-btn:disabled { background: var(--dim); cursor: not-allowed; transform: none; }
+
+  .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .btn-sec {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-sec:hover { border-color: var(--border2); background: var(--border); }
+
+  /* ── Decision banner ── */
+  .decision-banner {
+    border-radius: 10px;
+    padding: 18px 22px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .decision-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.04) 0%, transparent 60%);
+  }
+  .decision-banner.ship   { background: var(--green-bg); border: 1px solid var(--green); }
+  .decision-banner.hold   { background: var(--amber-bg); border: 1px solid var(--amber); }
+  .decision-banner.reject { background: var(--red-bg); border: 1px solid var(--red); }
+
+  .db-label { font-size: 11px; font-family: var(--mono); opacity: .7; }
+  .db-value { font-size: 22px; font-weight: 700; margin-top: 1px; }
+  .db-value.ship   { color: var(--green); }
+  .db-value.hold   { color: var(--amber); }
+  .db-value.reject { color: var(--red); }
+
+  .db-metrics { display: flex; gap: 28px; }
+  .db-metric { text-align: right; }
+
+  /* ── Metrics grid ── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .metric-card .m-label { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .metric-card .m-value { font-size: 20px; font-weight: 700; margin-top: 4px; font-family: var(--mono); }
+  .metric-card .m-sub { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+
+  /* ── Failure mode table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    text-align: left; padding: 8px 10px; font-size: 10px;
+    text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 9px 10px; }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+
+  /* ── Prob bar ── */
+  .prob-bar { display: flex; align-items: center; gap: 8px; }
+  .bar-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width .8s ease; }
+  .bar-pct { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 60px; text-align: right; }
+
+  /* ── Checkpoint pipeline ── */
+  .pipeline { display: flex; gap: 0; margin-bottom: 16px; }
+  .cp-step {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-right: none;
+    padding: 10px 8px;
+    text-align: center;
+    position: relative;
+    transition: all .2s;
+  }
+  .cp-step:first-child { border-radius: 8px 0 0 8px; }
+  .cp-step:last-child { border-radius: 0 8px 8px 0; border-right: 1px solid var(--border); }
+  .cp-step.pass   { background: var(--green-bg); border-color: #1a3d28; }
+  .cp-step.flag   { background: var(--amber-bg); border-color: #3d2a0a; }
+  .cp-step.kill   { background: var(--red-bg);   border-color: #3d1010; }
+  .cp-step.skipped { background: var(--surface); opacity: .4; }
+  .cp-step .cp-num { font-size: 9px; font-family: var(--mono); color: var(--muted); }
+  .cp-step .cp-name { font-size: 10px; font-weight: 600; margin-top: 2px; }
+  .cp-step .cp-dec {
+    font-size: 8px; font-family: var(--mono); text-transform: uppercase;
+    letter-spacing: .1em; margin-top: 4px;
+  }
+  .cp-step.pass .cp-dec { color: var(--green); }
+  .cp-step.flag .cp-dec { color: var(--amber); }
+  .cp-step.kill .cp-dec { color: var(--red); }
+
+  /* ── Debate log ── */
+  .debate-box {
+    background: #1a1208;
+    border: 1px solid #4a3810;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.7;
+  }
+  .debate-rule {
+    display: inline-block; background: var(--amber-bg);
+    color: var(--amber); border: 1px solid var(--amber);
+    border-radius: 4px; padding: 1px 7px; font-size: 10px;
+    margin-bottom: 8px; font-family: var(--mono);
+  }
+
+  /* ── Narrative box ── */
+  .narrative-box {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 18px;
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  /* ── Actions list ── */
+  .action-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .action-item:last-child { border-bottom: none; }
+  .action-num {
+    background: var(--blue-bg); color: var(--blue);
+    border-radius: 4px; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-family: var(--mono); flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── KB Cases ── */
+  .kb-case {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    font-size: 12.5px;
+  }
+  .kb-id { font-family: var(--mono); color: var(--blue); font-size: 11px; }
+  .kb-sim { font-family: var(--mono); font-size: 10px; color: var(--muted); float: right; }
+  .kb-defect { font-weight: 600; margin: 4px 0; }
+  .kb-rec { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  /* ── Loading spinner ── */
+  .loading {
+    display: none;
+    align-items: center; gap: 12px;
+    padding: 20px; color: var(--muted); font-family: var(--mono); font-size: 12px;
+  }
+  .loading.show { display: flex; }
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--green); border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Audit trail ── */
+  .audit-json {
+    background: #0a0b0d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    overflow-x: auto;
+    white-space: pre;
+    max-height: 300px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-block; border-radius: 4px; padding: 1px 7px;
+    font-size: 10px; font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em;
+  }
+  .badge.pass   { background: var(--green-bg); color: var(--green); }
+  .badge.flag   { background: var(--amber-bg); color: var(--amber); }
+  .badge.kill,
+  .badge.reject { background: var(--red-bg);   color: var(--red); }
+  .badge.ship   { background: var(--green-bg); color: var(--green); }
+  .badge.hold   { background: var(--amber-bg); color: var(--amber); }
+
+  /* ── Empty / error states ── */
+  .empty {
+    text-align: center; padding: 40px; color: var(--dim);
+    font-size: 13px; font-family: var(--mono);
+  }
+  .error-box {
+    background: var(--red-bg); border: 1px solid var(--red);
+    border-radius: 8px; padding: 14px; font-size: 12.5px;
+    color: var(--red); font-family: var(--mono); margin-top: 12px;
+  }
+
+  /* ── Debate-only page ── */
+  .rule-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .rule-num {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+    font-family: var(--mono);
+  }
+  .rule-card:nth-child(1) .rule-num { background: #1a1f2e; color: var(--blue); }
+  .rule-card:nth-child(2) .rule-num { background: #2e1a1a; color: var(--red); }
+  .rule-card:nth-child(3) .rule-num { background: #2e1a1a; color: var(--red); }
+  .rule-card:nth-child(4) .rule-num { background: #1a2e1e; color: var(--green); }
+  .rule-card:nth-child(5) .rule-num { background: #1e1e2e; color: var(--muted); }
+  .rule-title { font-weight: 600; margin-bottom: 3px; font-size: 13px; }
+  .rule-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="logo">
+      <h1>Pack<span>Guard</span></h1>
+      <p>Orchestrator Dashboard · Person 3</p>
+    </div>
+    <div class="nav">
+      <div class="nav-section">Analysis</div>
+      <div class="nav-item active" onclick="showPage('analyze')">
+        <span class="icon">⬡</span> Run Analysis
+      </div>
+      <div class="nav-item" onclick="showPage('report')">
+        <span class="icon">◈</span> Report View
+      </div>
+
+      <div class="nav-section">Subsystems</div>
+      <div class="nav-item" onclick="showPage('debate')">
+        <span class="icon">⚖</span> Debate Protocol
+      </div>
+      <div class="nav-item" onclick="showPage('kb')">
+        <span class="icon">◎</span> Knowledge Base
+      </div>
+      <div class="nav-item" onclick="showPage('audit')">
+        <span class="icon">≡</span> Audit Trail
+      </div>
+
+      <div class="nav-section">Documentation</div>
+      <div class="nav-item" onclick="showPage('architecture')">
+        <span class="icon">◌</span> Architecture
+      </div>
+    </div>
+    <div class="api-status">
+      <span class="api-dot"></span>
+      API: localhost:8001
+    </div>
+  </nav>
+
+  <!-- ── Main content ── -->
+  <main class="main">
+
+    <!-- ── PAGE: Analyze ── -->
+    <div class="page active" id="page-analyze">
+      <div class="page-header">
+        <h2>Run Orchestration</h2>
+        <p>Select a demo scenario or paste a custom lot JSON, then run the full pipeline.</p>
+      </div>
+
+      <div class="scenario-grid">
+        <div class="scenario-btn selected" onclick="selectScenario('clean', this)">
+          <div class="s-label">Scenario A</div>
+          <div class="s-name" style="color:var(--green)">Clean Lot</div>
+          <div class="s-desc">All 7 checkpoints pass. Demonstrates a healthy lot shipping with confidence.</div>
+        </div>
+        <div class="scenario-btn" onclick="selectScenario('early_kill', this)">
+          <div class="s-label">Scenario B</div>
+          <div class="s-name" style="color:var(--red)">Early Kill</div>
+          <div class="s-desc">2.1mm die crack at CP1. Lot killed immediately — saves $1,847 per lot.</div>
+        </div>
+        <div class="scenario-btn" onclick="selectScenario('debate_trigger', this)">
+          <div class="s-label">Scenario C</div>
+          <div class="s-name" style="color:var(--amber)">Debate Trigger</div>
+          <div class="s-desc">CV says OK at CP3, SPC drift 3.2σ. Rule 2 fires — process overrides spec.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Lot State JSON (editable)</div>
+        <textarea class="lot-editor" id="lot-json" spellcheck="false"></textarea>
+        <div class="btn-row">
+          <button class="run-btn" id="run-btn" onclick="runAnalysis()">
+            <span>▶</span> Run Orchestrator
+          </button>
+          <button class="btn-sec" onclick="runDebateOnly()">Debate-only (fast)</button>
+          <button class="btn-sec" onclick="runAggregatorOnly()">Aggregator-only</button>
+        </div>
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+          <span id="loading-text">Calling Anthropic API...</span>
+        </div>
+        <div class="error-box" id="error-box" style="display:none"></div>
+      </div>
+
+      <!-- ── Quick results (inline) ── -->
+      <div id="inline-results" style="display:none">
+        <div class="decision-banner" id="inline-banner">
+          <div>
+            <div class="db-label">FINAL DECISION</div>
+            <div class="db-value" id="inline-decision">—</div>
+          </div>
+          <div class="db-metrics">
+            <div class="db-metric">
+              <div class="db-label">P(fail)</div>
+              <div class="db-value" id="inline-pfail" style="font-size:16px">—</div>
+            </div>
+            <div class="db-metric">
+              <div class="db-label">DPPM equiv.</div>
+              <div class="db-value" id="inline-dppm" style="font-size:16px">—</div>
+            </div>
+            <div class="db-metric">
+              <div class="db-label">Cost saved</div>
+              <div class="db-value" id="inline-cost" style="font-size:16px;color:var(--green)">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Checkpoint Pipeline</div>
+          <div class="pipeline" id="inline-pipeline"></div>
+        </div>
+
+        <p style="color:var(--muted);font-size:12px;margin-bottom:8px">
+          Full report generated ↓ — <a href="#" onclick="showPage('report')" style="color:var(--blue)">view Report page</a>
+          for details, narrative, KB cases and PDF download.
+        </p>
+      </div>
+    </div>
+
+    <!-- ── PAGE: Report ── -->
+    <div class="page" id="page-report">
+      <div class="page-header">
+        <h2>Full Risk Report</h2>
+        <p>Generated by the Orchestrator LLM after debate protocol and KB retrieval.</p>
+      </div>
+      <div id="report-empty" class="empty">No analysis run yet. Go to Run Analysis and run the orchestrator.</div>
+      <div id="report-content" style="display:none">
+
+        <div class="decision-banner" id="report-banner">
+          <div>
+            <div class="db-label">FINAL DECISION — <span id="r-lot-id"></span></div>
+            <div class="db-value" id="r-decision">—</div>
+          </div>
+          <div class="db-metrics">
+            <div class="db-metric">
+              <div class="db-label">Lifetime</div>
+              <div class="db-value" id="r-lifetime" style="font-size:16px">—</div>
+            </div>
+            <div class="db-metric">
+              <div class="db-label">90% CI</div>
+              <div class="db-value" id="r-ci" style="font-size:16px">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="m-label">P(any failure)</div>
+            <div class="m-value" id="r-pfail">—</div>
+            <div class="m-sub">probability</div>
+          </div>
+          <div class="metric-card">
+            <div class="m-label">DPPM equivalent</div>
+            <div class="m-value" id="r-dppm">—</div>
+            <div class="m-sub">defects per million</div>
+          </div>
+          <div class="metric-card">
+            <div class="m-label">Cost avoided</div>
+            <div class="m-value" id="r-cost" style="color:var(--green)">—</div>
+            <div class="m-sub">USD this lot</div>
+          </div>
+          <div class="metric-card">
+            <div class="m-label">Debate triggered</div>
+            <div class="m-value" id="r-debate-trig">—</div>
+            <div class="m-sub" id="r-debate-rule">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Top Failure Modes</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Mode</th><th>P(fail)</th><th>Risk</th>
+                <th>Physics Model</th><th>Step</th><th>KB Case</th>
+              </tr>
+            </thead>
+            <tbody id="r-modes-table"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Per-Mode Risk Bars</div>
+          <div id="r-prob-bars"></div>
+        </div>
+
+        <div class="card" id="r-debate-card" style="display:none">
+          <div class="card-title">Debate Protocol Log</div>
+          <div class="debate-box" id="r-debate-box"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Engineer Narrative</div>
+          <div class="narrative-box" id="r-narrative">—</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Recommended Actions</div>
+          <div id="r-actions"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Citations & Standards</div>
+          <div id="r-citations" style="font-size:12px;color:var(--muted);line-height:1.8;font-family:var(--mono)"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="run-btn" onclick="downloadPDF()" style="background:var(--blue)">
+            ↓ Download PDF Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAGE: Debate ── -->
+    <div class="page" id="page-debate">
+      <div class="page-header">
+        <h2>Debate Protocol</h2>
+        <p>5 deterministic Python rules — no LLM in any decision. Pure logic, fully auditable.</p>
+      </div>
+
+      <div class="rule-card">
+        <div class="rule-num">1</div>
+        <div>
+          <div class="rule-title">Physics beats vision</div>
+          <div class="rule-desc">
+            If a deterministic physics model (Coffin-Manson, Black, Griffith) predicts failure
+            with P(fail) &gt; 15%, it overrides a "looks fine" CV result with confidence &lt;80%.
+            Visual inspection cannot see latent damage.
+            <br><br>
+            <code style="font-family:var(--mono);font-size:11px;color:var(--blue)">
+              if p_fail &gt; 0.15 and cv_invoked and cv_ok is False and cv_conf &lt; 0.80 → KILL
+            </code>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card">
+        <div class="rule-num">2</div>
+        <div>
+          <div class="rule-title">Process beats specification</div>
+          <div class="rule-desc">
+            If SPC shows process drift &gt;3σ from centre, override specification compliance.
+            A process drifting 3σ today will be out of spec tomorrow.
+            <br><br>
+            <code style="font-family:var(--mono);font-size:11px;color:var(--red)">
+              if process_sigma_drift &gt; 3.0 → KILL
+            </code>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card">
+        <div class="rule-num">3</div>
+        <div>
+          <div class="rule-title">Worst-case wins for safety-critical</div>
+          <div class="rule-desc">
+            For AEC-Q100 (automotive), medical, and aerospace lots — take the most pessimistic
+            estimate from any tool. 10 DPPM = 0.001% threshold.
+            <br><br>
+            <code style="font-family:var(--mono);font-size:11px;color:var(--red)">
+              if app in {"automotive","medical","aerospace"} and max(p_fails) &gt; 0.00001 → KILL
+            </code>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card">
+        <div class="rule-num">4</div>
+        <div>
+          <div class="rule-title">Weighted average for non-safety-critical</div>
+          <div class="rule-desc">
+            For consumer and industrial lots, blend all tool outputs. If blended result
+            exceeds the application threshold, flag (not kill).
+            <br><br>
+            <code style="font-family:var(--mono);font-size:11px;color:var(--green)">
+              consumer threshold 0.1% · industrial 0.005% → FLAG if exceeded
+            </code>
+          </div>
+        </div>
+      </div>
+
+      <div class="rule-card">
+        <div class="rule-num">5</div>
+        <div>
+          <div class="rule-title">Tie-breaker: Orchestrator LLM</div>
+          <div class="rule-desc">
+            If no conflict detected (rules 1–4 did not fire), clean pass.
+            The LLM writes the explanation; the rules made the decision.
+            LLM output is advisory only — the final_decision field is hard-enforced
+            by the Python code after the LLM responds.
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="card">
+        <div class="card-title">Live Debate Test (no API key needed)</div>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">
+          Run the debate protocol only against the current lot JSON. Fast (&lt;5ms).
+        </p>
+        <button class="run-btn" onclick="runDebateOnly()" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)">
+          Run Debate Protocol →
+        </button>
+        <div id="debate-result-box" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <!-- ── PAGE: KB ── -->
+    <div class="page" id="page-kb">
+      <div class="page-header">
+        <h2>Knowledge Base</h2>
+        <p>35 hand-curated failure cases. Embedded with sentence-transformers, indexed in FAISS.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">KB Statistics</div>
+        <div class="metrics-grid" style="grid-template-columns:repeat(4,1fr)">
+          <div class="metric-card"><div class="m-label">Total Cases</div><div class="m-value">35</div><div class="m-sub">indexed</div></div>
+          <div class="metric-card"><div class="m-label">Applications</div><div class="m-value">4</div><div class="m-sub">auto / server / consumer / industrial</div></div>
+          <div class="metric-card"><div class="m-label">Checkpoints</div><div class="m-value">1–7</div><div class="m-sub">coverage</div></div>
+          <div class="metric-card"><div class="m-label">Embedding Model</div><div class="m-value" style="font-size:11px">MiniLM-L6-v2</div><div class="m-sub">384-dim vectors</div></div>
+        </div>
+      </div>
+
+      <div id="kb-cases-list"></div>
+    </div>
+
+    <!-- ── PAGE: Audit ── -->
+    <div class="page" id="page-audit">
+      <div class="page-header">
+        <h2>Audit Trail</h2>
+        <p>Every decision is logged. Deterministic models cited. LLM calls recorded with temperature=0.</p>
+      </div>
+      <div id="audit-empty" class="empty">No analysis run yet.</div>
+      <div id="audit-content" style="display:none">
+        <div class="card">
+          <div class="card-title">Full Audit Record (JSON)</div>
+          <div class="audit-json" id="audit-json"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAGE: Architecture ── -->
+    <div class="page" id="page-architecture">
+      <div class="page-header">
+        <h2>Architecture</h2>
+        <p>Person 3's subsystem — how data flows from lot input to final report.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">File Structure</div>
+        <div class="audit-json" style="max-height:none">packguard/
+├── main.py                   ← FastAPI app  (POST /orchestrate, /debate, /aggregate)
+├── lot_schema.py             ← Pydantic LotState model — shared API contract with Person 2
+├── debate.py                 ← 5 deterministic debate rules (no LLM)
+├── aggregator.py             ← 1−∏(1−Pi) aggregation + DPPM thresholds
+├── orchestrator/
+│   ├── service.py            ← run_orchestrator() — main brain function
+│   └── prompt.py             ← SYSTEM_PROMPT constant (writer instructions)
+├── kb/
+│   ├── cases.json            ← 35 curated failure cases (JEDEC-sourced)
+│   ├── embed.py              ← Build FAISS index: python kb/embed.py
+│   ├── retriever.py          ← retrieve(query, k) → top-k similar cases
+│   ├── index.faiss           ← Generated by embed.py
+│   └── cases_meta.pkl        ← Generated by embed.py
+├── pdf_gen/
+│   └── generator.py         ← generate_pdf(report, lot_id) → PDF path
+└── tests/
+    └── test_all.py           ← 24 unit tests — all passing</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Orchestration Flow</div>
+        <div style="font-size:12.5px;line-height:2;font-family:var(--mono);color:var(--muted)">
+          Person 2 pipeline output (LotState JSON)<br>
+          &nbsp;&nbsp;↓<br>
+          POST /orchestrate<br>
+          &nbsp;&nbsp;↓<br>
+          [1] <span style="color:var(--text)">run_debate(lot)</span> → DebateResolution (deterministic, &lt;5ms)<br>
+          &nbsp;&nbsp;↓<br>
+          [2] <span style="color:var(--text)">aggregate_failure_probability()</span> → overall P(fail) (deterministic)<br>
+          &nbsp;&nbsp;↓<br>
+          [3] <span style="color:var(--text)">retrieve_for_lot()</span> → top-3 KB cases (FAISS, ~50ms)<br>
+          &nbsp;&nbsp;↓<br>
+          [4] <span style="color:var(--text)">_call_anthropic(context)</span> → narrative JSON (LLM, ~2s, temperature=0)<br>
+          &nbsp;&nbsp;↓<br>
+          [5] Hard-enforce debate override on LLM output (deterministic)<br>
+          &nbsp;&nbsp;↓<br>
+          Structured report JSON → Person 4's dashboard + PDF
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Run Commands</div>
+        <div class="audit-json" style="max-height:none"># Start the API server
+uvicorn main:app --reload --port 8001
+
+# Build KB FAISS index (run once, then after adding cases)
+python kb/embed.py
+
+# Run all 24 unit tests
+python -m pytest tests/ -v
+
+# Test debate-only endpoint (no API key needed)
+curl -X POST http://localhost:8001/debate -H "Content-Type: application/json" -d @lot.json
+
+# View auto-generated Swagger docs
+open http://localhost:8001/docs
+
+# Run CLI quick-test (needs ANTHROPIC_API_KEY)
+python orchestrator/service.py --scenario early_kill</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8001';
+let currentReport = null;
+let currentLot = null;
+let currentScenario = 'clean';
+
+// Pre-baked lots (fallback when API is unavailable)
+const SCENARIOS = {
+  clean: null,
+  early_kill: null,
+  debate_trigger: null,
+};
+
+// ── Page switching ────────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (id === 'kb') renderKBCases();
+  if (id === 'audit') renderAudit();
+}
+
+// ── Scenario selection ────────────────────────────────────────────────────────
+async function selectScenario(name, btn) {
+  currentScenario = name;
+  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  await loadScenarioJSON(name);
+}
+
+async function loadScenarioJSON(name) {
+  // Try to fetch from the API; fall back to embedded data
+  try {
+    const res = await fetch(`${API}/scenarios/${name}`);
+    if (res.ok) {
+      const data = await res.json();
+      SCENARIOS[name] = data;
+      document.getElementById('lot-json').value = JSON.stringify(data, null, 2);
+      return;
+    }
+  } catch (_) {}
+
+  // Fallback: build a minimal lot locally
+  const lot = buildFallbackLot(name);
+  SCENARIOS[name] = lot;
+  document.getElementById('lot-json').value = JSON.stringify(lot, null, 2);
+}
+
+// ── Analysis ─────────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const btn = document.getElementById('run-btn');
+  const loading = document.getElementById('loading');
+  const errBox = document.getElementById('error-box');
+
+  errBox.style.display = 'none';
+  document.getElementById('inline-results').style.display = 'none';
+
+  let lot;
+  try {
+    lot = JSON.parse(document.getElementById('lot-json').value);
+  } catch (e) {
+    showError('Invalid JSON: ' + e.message);
+    return;
+  }
+
+  currentLot = lot;
+  btn.disabled = true;
+  loading.classList.add('show');
+  document.getElementById('loading-text').textContent = 'Running debate protocol + KB retrieval + LLM...';
+
+  try {
+    const res = await fetch(`${API}/orchestrate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(lot),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    currentReport = await res.json();
+    renderInlineResults(currentReport, lot);
+    renderFullReport(currentReport, lot);
+    renderAudit();
+
+  } catch (e) {
+    // Fallback: run just debate + aggregator locally via the fast endpoints
+    try {
+      document.getElementById('loading-text').textContent = 'LLM unavailable — running deterministic-only mode...';
+      const [debRes, aggRes] = await Promise.all([
+        fetch(`${API}/debate`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(lot)}),
+        fetch(`${API}/aggregate`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(lot)}),
+      ]);
+      const deb = await debRes.json();
+      const agg = await aggRes.json();
+
+      currentReport = buildMockReport(lot, deb, agg);
+      renderInlineResults(currentReport, lot);
+      renderFullReport(currentReport, lot);
+      renderAudit();
+
+    } catch (e2) {
+      showError(`API unavailable: ${e.message}\n\nMake sure the server is running:\nuvicorn main:app --reload --port 8001`);
+    }
+  } finally {
+    btn.disabled = false;
+    loading.classList.remove('show');
+  }
+}
+
+async function runDebateOnly() {
+  let lot;
+  try {
+    lot = JSON.parse(document.getElementById('lot-json').value);
+  } catch (e) {
+    showError('Invalid JSON'); return;
+  }
+
+  try {
+    const res = await fetch(`${API}/debate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(lot),
+    });
+    const data = await res.json();
+    const box = document.getElementById('debate-result-box');
+    box.innerHTML = renderDebateBox(data);
+  } catch (e) {
+    document.getElementById('debate-result-box').innerHTML =
+      `<div class="error-box">API unavailable: ${e.message}</div>`;
+  }
+}
+
+async function runAggregatorOnly() {
+  let lot;
+  try {
+    lot = JSON.parse(document.getElementById('lot-json').value);
+  } catch (e) {
+    showError('Invalid JSON'); return;
+  }
+  try {
+    const res = await fetch(`${API}/aggregate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(lot),
+    });
+    const data = await res.json();
+    alert(JSON.stringify(data, null, 2));
+  } catch (e) {
+    showError(`API error: ${e.message}`);
+  }
+}
+
+// ── Renderers ─────────────────────────────────────────────────────────────────
+function renderInlineResults(r, lot) {
+  const el = document.getElementById('inline-results');
+  el.style.display = 'block';
+
+  const dec = (r.final_decision || 'hold').toLowerCase();
+  const banner = document.getElementById('inline-banner');
+  banner.className = `decision-banner ${dec}`;
+
+  const dv = document.getElementById('inline-decision');
+  dv.className = `db-value ${dec}`;
+  dv.textContent = dec.toUpperCase();
+
+  document.getElementById('inline-pfail').textContent = fmtPct(r.overall_p_fail);
+  document.getElementById('inline-dppm').textContent = fmtNum(r.dppm_equivalent, 2);
+  document.getElementById('inline-cost').textContent = '$' + fmtNum(r.cost_saved_usd, 0);
+
+  // Pipeline
+  const pipe = document.getElementById('inline-pipeline');
+  const names = ['','Dicing','Die Attach','Wire Bond','Molding','Reflow','Test','Final Gate'];
+  pipe.innerHTML = (lot.checkpoints || []).map(c => {
+    const cls = c.skipped ? 'skipped' : (c.decision || 'pass').toLowerCase();
+    return `<div class="cp-step ${cls}">
+      <div class="cp-num">CP${c.step}</div>
+      <div class="cp-name">${names[c.step] || c.name || ''}</div>
+      <div class="cp-dec">${c.skipped ? 'skip' : (c.decision || 'pass')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderFullReport(r, lot) {
+  document.getElementById('report-empty').style.display = 'none';
+  document.getElementById('report-content').style.display = 'block';
+
+  const dec = (r.final_decision || 'hold').toLowerCase();
+  const banner = document.getElementById('report-banner');
+  banner.className = `decision-banner ${dec}`;
+
+  const rd = document.getElementById('r-decision');
+  rd.className = `db-value ${dec}`;
+  rd.textContent = dec.toUpperCase();
+
+  document.getElementById('r-lot-id').textContent = r._audit?.lot_id || lot.lot_id || '';
+  document.getElementById('r-lifetime').textContent = (r.predicted_lifetime_years || 0).toFixed(1) + ' yr';
+  const ci = r.confidence_interval || [0, 0];
+  document.getElementById('r-ci').textContent = `${ci[0].toFixed(1)}–${ci[1].toFixed(1)} yr`;
+
+  document.getElementById('r-pfail').textContent = fmtPct(r.overall_p_fail);
+  document.getElementById('r-dppm').textContent = fmtNum(r.dppm_equivalent, 1);
+  document.getElementById('r-cost').textContent = '$' + fmtNum(r.cost_saved_usd, 0);
+
+  const dt = r.debate_triggered ? '⚠ YES' : 'No';
+  document.getElementById('r-debate-trig').textContent = dt;
+  document.getElementById('r-debate-trig').style.color = r.debate_triggered ? 'var(--amber)' : 'var(--green)';
+  document.getElementById('r-debate-rule').textContent = r.debate_triggered ? `Rule ${r.debate_rule_fired} fired` : 'All tools agree';
+
+  // Failure modes table
+  const modes = r.top_failure_modes || [];
+  const maxP = modes.length > 0 ? (modes[0].p_fail || 0) : 1;
+  document.getElementById('r-modes-table').innerHTML = modes.map(m => {
+    const pct = (m.p_fail || 0) / maxP * 100;
+    const col = m.p_fail > 0.01 ? 'var(--red)' : m.p_fail > 0.001 ? 'var(--amber)' : 'var(--green)';
+    return `<tr>
+      <td>${(m.mode||'').replace(/_/g,' ')}</td>
+      <td style="font-family:var(--mono)">${fmtPct(m.p_fail)}</td>
+      <td><div class="prob-bar">
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      </div></td>
+      <td style="color:var(--muted);font-size:11.5px;font-family:var(--mono)">${m.physics_model||'—'}</td>
+      <td style="text-align:center">${m.checkpoint||'—'}</td>
+      <td style="font-family:var(--mono);color:var(--blue);font-size:11px">${m.kb_case_id||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:var(--muted);padding:16px;text-align:center">No failure modes reported</td></tr>';
+
+  // Risk bars
+  document.getElementById('r-prob-bars').innerHTML = modes.slice(0, 5).map(m => {
+    const pct = maxP > 0 ? Math.min(100, (m.p_fail / maxP) * 100) : 0;
+    const col = m.p_fail > 0.01 ? 'var(--red)' : m.p_fail > 0.001 ? 'var(--amber)' : 'var(--green)';
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:140px;font-size:11.5px;font-family:var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        ${(m.mode||'').replace(/_/g,' ')}
+      </div>
+      <div class="bar-track" style="flex:1;height:6px">
+        <div class="bar-fill" style="width:${pct}%;background:${col}"></div>
+      </div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);min-width:65px;text-align:right">
+        ${fmtPct(m.p_fail)}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Debate log
+  const deb = r._audit?.debate || {};
+  if (r.debate_triggered || deb.triggered) {
+    document.getElementById('r-debate-card').style.display = 'block';
+    document.getElementById('r-debate-box').innerHTML = renderDebateBox(
+      r.debate_triggered !== undefined ? {
+        triggered: r.debate_triggered,
+        rule_fired: r.debate_rule_fired,
+        rule_description: r.debate_rule_description,
+        override_applied: r.override_applied,
+        reasoning: deb.reasoning || '',
+      } : deb
+    );
+  }
+
+  // Narrative
+  document.getElementById('r-narrative').textContent = r.narrative || '—';
+
+  // Actions
+  const acts = r.recommended_actions || [];
+  document.getElementById('r-actions').innerHTML = acts.map((a, i) =>
+    `<div class="action-item">
+      <div class="action-num">${i+1}</div>
+      <div>${a}</div>
+    </div>`
+  ).join('') || '<div style="color:var(--muted);font-size:13px">No actions listed.</div>';
+
+  // Citations
+  const cites = r.citations || [];
+  document.getElementById('r-citations').textContent = cites.map(c => '• ' + c).join('\n') || '—';
+}
+
+function renderDebateBox(d) {
+  if (!d || !d.triggered) {
+    return `<div style="color:var(--green);font-family:var(--mono);font-size:12px">
+      ✓ No debate triggered. All tools agree.
+    </div>`;
+  }
+  return `<div class="debate-rule">Rule ${d.rule_fired} fired</div>
+  <div style="font-weight:600;margin-bottom:6px">${d.rule_description || ''}</div>
+  <div style="color:var(--muted)">${d.reasoning || ''}</div>
+  ${d.override_applied ? `<div style="color:var(--amber);margin-top:8px;font-size:11px">⚠ Override applied — debate decision supersedes checkpoint result.</div>` : ''}`;
+}
+
+function renderAudit() {
+  if (!currentReport) return;
+  document.getElementById('audit-empty').style.display = 'none';
+  document.getElementById('audit-content').style.display = 'block';
+  document.getElementById('audit-json').textContent =
+    JSON.stringify(currentReport._audit || currentReport, null, 2);
+}
+
+function renderKBCases() {
+  // Embed first 12 cases from the known KB
+  const cases = KB_CASES_PREVIEW;
+  document.getElementById('kb-cases-list').innerHTML = cases.map(c => `
+    <div class="kb-case">
+      <span class="kb-id">${c.id}</span>
+      <span class="kb-sim">CP${c.checkpoint} · ${c.application} · ${c.package_type}</span>
+      <div class="kb-defect">${c.defect_observed}</div>
+      <div style="font-size:11.5px;color:var(--muted);font-family:var(--mono);margin:3px 0">
+        Model: ${c.physics_model}
+      </div>
+      <div class="kb-rec">→ ${c.recommended_action}</div>
+    </div>
+  `).join('');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtPct(v) {
+  if (v === undefined || v === null) return '—';
+  if (v >= 0.01) return (v * 100).toFixed(2) + '%';
+  return (v * 100).toFixed(5) + '%';
+}
+function fmtNum(v, dp=0) {
+  if (v === undefined || v === null) return '—';
+  return Number(v).toFixed(dp).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.style.display = 'block';
+}
+
+function downloadPDF() {
+  if (!currentLot) { alert('Run analysis first'); return; }
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `${API}/orchestrate/pdf`;
+  form.target = '_blank';
+  const inp = document.createElement('input');
+  inp.type = 'hidden';
+  inp.name = 'body';
+  form.appendChild(inp);
+  // Use fetch instead
+  fetch(`${API}/orchestrate/pdf`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(currentLot),
+  }).then(r => r.blob()).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `packguard_${currentLot.lot_id}.pdf`;
+    a.click();
+  }).catch(e => alert(`PDF download failed: ${e.message}\nMake sure the server is running.`));
+}
+
+// ── Fallback lot builder ──────────────────────────────────────────────────────
+function buildFallbackLot(scenario) {
+  const names = ['','dicing','die_attach','wire_bond','molding','reflow','test','final_gate'];
+  const models = ['','Griffith','Ideal Gas Law','Arrhenius IMC','Fluid Dynamics','Coffin-Manson','Weibull','Aggregator'];
+  const modes = ['','die_crack_propagation','void_thermal','imc_wire_bond','wire_sweep_short','solder_fatigue','infant_mortality','composite'];
+
+  if (scenario === 'clean') {
+    return {
+      lot_id: 'LOT-CLEAN-001', package_type: 'BGA-256', target_application: 'automotive',
+      overall_decision: 'pass', metadata: {},
+      checkpoints: Array.from({length:7}, (_,i) => ({
+        step: i+1, name: names[i+1], decision: 'pass', reasons: ['Within spec'],
+        cost_avoided: 0, skipped: false, cv_invoked: false, cv_confidence: null,
+        physics_outputs: { probability_of_failure: 0.000005, confidence_interval: [0.000001, 0.00001],
+          predicted_lifetime: 16.2, model_used: models[i+1], failure_mode: modes[i+1],
+          process_sigma_drift: 0.8, cv_detects_defect: null }
+      }))
+    };
+  }
+  if (scenario === 'early_kill') {
+    return {
+      lot_id: 'LOT-EARLYKILL-001', package_type: 'BGA-256', target_application: 'automotive',
+      overall_decision: 'kill', metadata: {},
+      checkpoints: [
+        { step:1, name:'dicing', decision:'kill', reasons:['Crack 2.1mm > 1.5mm JEDEC limit'],
+          cost_avoided: 1847, skipped: false, cv_invoked: false, cv_confidence: null,
+          physics_outputs: { probability_of_failure: 0.94, confidence_interval: [0.88, 0.98],
+            predicted_lifetime: 0.3, model_used: 'Griffith Crack Propagation',
+            failure_mode: 'die_crack_propagation', process_sigma_drift: 0.5, cv_detects_defect: null }
+        },
+        ...Array.from({length:6}, (_,i) => ({
+          step: i+2, name: names[i+2], decision: 'pass', reasons: ['Skipped'],
+          cost_avoided:0, skipped:true, cv_invoked:false, cv_confidence:null,
+          physics_outputs: { probability_of_failure:0, confidence_interval:[0,0],
+            predicted_lifetime:null, model_used:'', failure_mode:'', process_sigma_drift:0, cv_detects_defect:null }
+        }))
+      ]
+    };
+  }
+  // debate_trigger
+  return {
+    lot_id: 'LOT-DEBATE-001', package_type: 'BGA-256', target_application: 'automotive',
+    overall_decision: 'flag', metadata: {},
+    checkpoints: Array.from({length:7}, (_,i) => {
+      const step = i+1; const isCP3 = step === 3;
+      return {
+        step, name: names[step], decision: isCP3 ? 'flag' : 'pass',
+        reasons: isCP3 ? ['SPC drift 3.2σ','CV: no visible defect'] : ['Within spec'],
+        cost_avoided: 0, skipped: false, cv_invoked: isCP3, cv_confidence: isCP3 ? 0.61 : null,
+        physics_outputs: { probability_of_failure: isCP3 ? 0.0012 : 0.000004,
+          confidence_interval: isCP3 ? [0.0005, 0.002] : [0.000001, 0.00001],
+          predicted_lifetime: isCP3 ? 14.1 : 16.8, model_used: models[step],
+          failure_mode: modes[step], process_sigma_drift: isCP3 ? 3.2 : 0.9,
+          cv_detects_defect: isCP3 ? false : null }
+      };
+    })
+  };
+}
+
+function buildMockReport(lot, deb, agg) {
+  const dec = deb.override_applied ? {kill:'reject',flag:'hold',pass:'ship'}[deb.final_decision] : agg.gate_decision;
+  const modes = Object.entries(agg.per_mode_probabilities || {}).map(([mode, p_fail]) => ({
+    mode, p_fail, physics_model: 'Deterministic', checkpoint: 1, kb_case_id: null
+  })).sort((a,b) => b.p_fail - a.p_fail);
+
+  return {
+    final_decision: dec,
+    overall_p_fail: agg.overall_p_fail,
+    dppm_equivalent: agg.dppm_equivalent,
+    predicted_lifetime_years: 10,
+    confidence_interval: [8, 12],
+    cost_saved_usd: (lot.checkpoints || []).reduce((s,c) => s + (c.cost_avoided||0), 0),
+    debate_triggered: deb.triggered,
+    debate_rule_fired: deb.rule_fired,
+    debate_rule_description: deb.rule_description,
+    override_applied: deb.override_applied,
+    top_failure_modes: modes,
+    recommended_actions: ['Full orchestrator report requires ANTHROPIC_API_KEY. Set it and re-run.'],
+    narrative: deb.reasoning + '\n\nNote: LLM narrative requires ANTHROPIC_API_KEY. Deterministic results shown above are accurate.',
+    citations: ['PackGuard deterministic physics models'],
+    _audit: {
+      lot_id: lot.lot_id,
+      debate: deb,
+      per_mode_probs: agg.per_mode_probabilities,
+      kb_cases_used: [],
+      model_called: 'deterministic-only-mode',
+    }
+  };
+}
+
+// ── KB preview data (first 10 cases embedded for offline display) ─────────────
+const KB_CASES_PREVIEW = [
+  {id:'KB-001',package_type:'BGA',application:'automotive',defect_observed:'Solder joint thermal fatigue fracture',checkpoint:5,physics_model:'Coffin-Manson',recommended_action:'Kill lot. Reflow profile cooling ramp must be reduced to <3 C/s.'},
+  {id:'KB-002',package_type:'BGA',application:'automotive',defect_observed:'Die crack propagation from dicing chip',checkpoint:1,physics_model:'Griffith Crack Propagation',recommended_action:'Kill at checkpoint 1. Inspect dicing blade wear.'},
+  {id:'KB-003',package_type:'QFN',application:'automotive',defect_observed:'Die attach void cluster causing thermal hotspot',checkpoint:2,physics_model:'Thermal Resistance Estimator',recommended_action:'Kill lot. Void ratio >25% violates JEDEC threshold.'},
+  {id:'KB-004',package_type:'TSOP',application:'consumer',defect_observed:'Wire bond IMC brittle fracture after thermal cycling',checkpoint:3,physics_model:'Arrhenius IMC Growth',recommended_action:'Flag lot for accelerated IMC aging test.'},
+  {id:'KB-005',package_type:'BGA',application:'server',defect_observed:'Popcorn cracking at reflow — moisture-induced delamination',checkpoint:5,physics_model:'Peck Model + Moisture Diffusion',recommended_action:'Reject lot. Implement real-time floor life tracking in MES.'},
+  {id:'KB-006',package_type:'BGA',application:'automotive',defect_observed:'Electromigration failure in Cu interconnect',checkpoint:5,physics_model:"Black's Equation",recommended_action:'Kill lot. Interconnect design requires wider traces.'},
+  {id:'KB-007',package_type:'QFP',application:'industrial',defect_observed:'Corrosion of bond pad from humidity ingress',checkpoint:6,physics_model:'Peck Model',recommended_action:'Kill lot. Increase EMC adhesion primer.'},
+  {id:'KB-008',package_type:'FBGA',application:'server',defect_observed:'Weibull beta<1 infant mortality population',checkpoint:6,physics_model:'Weibull Reliability Fit',recommended_action:'Flag batch. Extended 100% burn-in screening at 125C/168hr.'},
+  {id:'KB-009',package_type:'BGA',application:'automotive',defect_observed:'Wire sweep short circuit in dense BGA',checkpoint:4,physics_model:'Wire Sweep Calculator',recommended_action:'Kill lot. Reduce EMC injection velocity to <12 cm/s.'},
+  {id:'KB-010',package_type:'TSOP',application:'consumer',defect_observed:'Package warpage causing solder bridging',checkpoint:5,physics_model:'Warpage Calculator',recommended_action:'Kill lot. Review substrate CTE selection.'},
+];
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  await loadScenarioJSON('clean');
+})();
+</script>
+</body>
+</html>

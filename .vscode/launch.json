@@ -1,0 +1,121 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    // ── 1. Start the FastAPI server (F5 to launch) ─────────────────────────
+    {
+      "name": "▶ Run API Server (port 8001)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "main:app",
+        "--reload",
+        "--port", "8001",
+        "--host", "0.0.0.0"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+
+    // ── 2. Run ALL unit tests ──────────────────────────────────────────────
+    {
+      "name": "🧪 Run All Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests/test_all.py", "-v", "--tb=short"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+
+    // ── 3. Consistency test (deterministic, no API key needed) ─────────────
+    {
+      "name": "🔁 Consistency Test (deterministic)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/test_consistency.py",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+
+    // ── 4. Build the KB FAISS index ────────────────────────────────────────
+    {
+      "name": "📚 Build KB Index",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/kb/embed.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+
+    // ── 5. Test KB retrieval interactively ─────────────────────────────────
+    {
+      "name": "🔍 Test KB Retrieval",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/kb/retriever.py",
+      "args": ["solder fatigue automotive BGA"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+
+    // ── 6. Run orchestrator with scenario (needs ANTHROPIC_API_KEY in .env)
+    {
+      "name": "🤖 Orchestrator – Clean Lot",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/orchestrator/service.py",
+      "args": ["--scenario", "clean"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🤖 Orchestrator – Early Kill",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/orchestrator/service.py",
+      "args": ["--scenario", "early_kill"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🤖 Orchestrator – Debate Trigger",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/orchestrator/service.py",
+      "args": ["--scenario", "debate_trigger"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+
+    // ── 7. Generate a sample PDF report ───────────────────────────────────
+    {
+      "name": "📄 Generate Sample PDF",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/pdf_gen/generator.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+
+    // ── 8. Debug current open file ─────────────────────────────────────────
+    {
+      "name": "🐛 Debug Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    }
+  ]
+}

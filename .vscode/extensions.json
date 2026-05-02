@@ -1,0 +1,31 @@
+{
+  "recommendations": [
+    // ── Python core ────────────────────────────────────────────────────────
+    "ms-python.python",           // Python language support + IntelliSense
+    "ms-python.debugpy",          // Python debugger
+    "ms-python.black-formatter",  // Black auto-formatter (matches our 88-char ruler)
+    "ms-python.pylint",           // Linter
+
+    // ── FastAPI / REST ─────────────────────────────────────────────────────
+    "humao.rest-client",          // Send HTTP requests directly from .http files
+    "rangav.vscode-thunder-client", // REST client GUI (like Postman, built into VS Code)
+
+    // ── JSON / data files ──────────────────────────────────────────────────
+    "zainchen.json",              // Better JSON formatting + folding
+    "mohsen1.prettify-json",      // Prettify JSON files with one command
+
+    // ── Markdown ───────────────────────────────────────────────────────────
+    "yzhang.markdown-all-in-one", // README.md preview and editing
+
+    // ── Git ────────────────────────────────────────────────────────────────
+    "eamodio.gitlens",            // Inline git blame and history
+
+    // ── Productivity ───────────────────────────────────────────────────────
+    "streetsidesoftware.code-spell-checker", // Catch typos in comments
+    "aaron-bond.better-comments", // Colour-coded comment annotations (TODO, FIXME etc)
+    "christian-kohler.path-intellisense", // Autocomplete file paths in imports
+
+    // ── Env files ─────────────────────────────────────────────────────────
+    "mikestead.dotenv"            // Syntax highlighting for .env files
+  ]
+}

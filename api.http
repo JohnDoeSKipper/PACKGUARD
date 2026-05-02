@@ -1,0 +1,98 @@
+### PackGuard API — VS Code REST Client
+### Install extension: humao.rest-client
+### Click "Send Request" above any request to run it
+
+@baseUrl = http://localhost:8001
+
+# ─────────────────────────────────────────────────────────────────────────────
+### Health check
+GET {{baseUrl}}/health
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+### Get demo scenario: clean lot
+GET {{baseUrl}}/scenarios/clean
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+### Get demo scenario: early kill (die crack at CP1)
+GET {{baseUrl}}/scenarios/early_kill
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+### Get demo scenario: debate trigger (SPC drift at CP3)
+GET {{baseUrl}}/scenarios/debate_trigger
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+### Debate protocol only — fast (<5ms), no API key needed
+POST {{baseUrl}}/debate
+Content-Type: application/json
+
+{
+  "lot_id": "LOT-DEBATE-TEST",
+  "package_type": "BGA-256",
+  "target_application": "automotive",
+  "overall_decision": "flag",
+  "metadata": {},
+  "checkpoints": [
+    {"step": 1, "name": "dicing",     "decision": "pass", "reasons": ["OK"], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000004, "confidence_interval": [0.000001, 0.00001], "predicted_lifetime": 16.8, "units": "probability", "model_used": "Griffith", "assumptions": [], "failure_mode": "die_crack_propagation", "process_sigma_drift": 0.9, "cv_detects_defect": null}},
+    {"step": 2, "name": "die_attach", "decision": "pass", "reasons": ["OK"], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000004, "confidence_interval": [0.000001, 0.00001], "predicted_lifetime": 16.8, "units": "probability", "model_used": "Ideal Gas Law", "assumptions": [], "failure_mode": "void_thermal", "process_sigma_drift": 0.9, "cv_detects_defect": null}},
+    {"step": 3, "name": "wire_bond",  "decision": "flag", "reasons": ["SPC drift 3.2 sigma", "CV: no visible defect"], "cost_avoided": 0, "skipped": false, "cv_invoked": true, "cv_confidence": 0.61, "physics_outputs": {"probability_of_failure": 0.0012, "confidence_interval": [0.0005, 0.002], "predicted_lifetime": 14.1, "units": "probability", "model_used": "Arrhenius IMC", "assumptions": [], "failure_mode": "imc_wire_bond", "process_sigma_drift": 3.2, "cv_detects_defect": false}},
+    {"step": 4, "name": "molding",    "decision": "pass", "reasons": ["OK"], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000004, "confidence_interval": [0.000001, 0.00001], "predicted_lifetime": 16.8, "units": "probability", "model_used": "Fluid Dynamics", "assumptions": [], "failure_mode": "wire_sweep_short", "process_sigma_drift": 0.9, "cv_detects_defect": null}},
+    {"step": 5, "name": "reflow",     "decision": "pass", "reasons": ["OK"], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000004, "confidence_interval": [0.000001, 0.00001], "predicted_lifetime": 16.8, "units": "probability", "model_used": "Coffin-Manson", "assumptions": [], "failure_mode": "solder_fatigue", "process_sigma_drift": 0.9, "cv_detects_defect": null}},
+    {"step": 6, "name": "test",       "decision": "pass", "reasons": ["OK"], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000004, "confidence_interval": [0.000001, 0.00001], "predicted_lifetime": 16.8, "units": "probability", "model_used": "Weibull", "assumptions": [], "failure_mode": "infant_mortality", "process_sigma_drift": 0.9, "cv_detects_defect": null}},
+    {"step": 7, "name": "final_gate", "decision": "pass", "reasons": ["OK"], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000004, "confidence_interval": [0.000001, 0.00001], "predicted_lifetime": 16.8, "units": "probability", "model_used": "Aggregator", "assumptions": [], "failure_mode": "composite", "process_sigma_drift": 0.9, "cv_detects_defect": null}}
+  ]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+### Aggregator only — fast (<5ms), no API key needed
+POST {{baseUrl}}/aggregate
+Content-Type: application/json
+
+{
+  "lot_id": "LOT-AGG-TEST",
+  "package_type": "BGA-256",
+  "target_application": "automotive",
+  "overall_decision": "flag",
+  "metadata": {},
+  "checkpoints": [
+    {"step": 1, "name": "dicing",     "decision": "pass", "reasons": [], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000003, "confidence_interval": [0,0], "predicted_lifetime": 16, "units": "probability", "model_used": "Griffith", "assumptions": [], "failure_mode": "die_crack_propagation", "process_sigma_drift": 0.5, "cv_detects_defect": null}},
+    {"step": 5, "name": "reflow",     "decision": "pass", "reasons": [], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000008, "confidence_interval": [0,0], "predicted_lifetime": 14, "units": "probability", "model_used": "Coffin-Manson", "assumptions": [], "failure_mode": "solder_fatigue", "process_sigma_drift": 0.6, "cv_detects_defect": null}},
+    {"step": 7, "name": "final_gate", "decision": "pass", "reasons": [], "cost_avoided": 0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.000002, "confidence_interval": [0,0], "predicted_lifetime": 16, "units": "probability", "model_used": "Aggregator", "assumptions": [], "failure_mode": "composite", "process_sigma_drift": 0.4, "cv_detects_defect": null}}
+  ]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+### Full orchestration — REQUIRES ANTHROPIC_API_KEY in .env
+### This calls Claude to write the narrative (temperature=0)
+POST {{baseUrl}}/orchestrate
+Content-Type: application/json
+
+{
+  "lot_id": "LOT-EARLY-KILL-DEMO",
+  "package_type": "BGA-256",
+  "target_application": "automotive",
+  "overall_decision": "kill",
+  "metadata": {"wafer_id": "W-2026-042"},
+  "checkpoints": [
+    {"step": 1, "name": "dicing", "decision": "kill", "reasons": ["Crack 2.1mm > 1.5mm JEDEC limit", "Survival simulator: fracture at reflow"], "cost_avoided": 1847.0, "skipped": false, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0.94, "confidence_interval": [0.88, 0.98], "predicted_lifetime": 0.3, "units": "probability", "model_used": "Griffith Crack Propagation", "assumptions": ["SAC305 solder"], "failure_mode": "die_crack_propagation", "process_sigma_drift": 0.5, "cv_detects_defect": null}},
+    {"step": 2, "name": "die_attach", "decision": "pass", "reasons": ["Skipped"], "cost_avoided": 0, "skipped": true, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0, "confidence_interval": [0,0], "predicted_lifetime": null, "units": "probability", "model_used": "", "assumptions": [], "failure_mode": "", "process_sigma_drift": 0, "cv_detects_defect": null}},
+    {"step": 3, "name": "wire_bond", "decision": "pass", "reasons": ["Skipped"], "cost_avoided": 0, "skipped": true, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0, "confidence_interval": [0,0], "predicted_lifetime": null, "units": "probability", "model_used": "", "assumptions": [], "failure_mode": "", "process_sigma_drift": 0, "cv_detects_defect": null}},
+    {"step": 4, "name": "molding",   "decision": "pass", "reasons": ["Skipped"], "cost_avoided": 0, "skipped": true, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0, "confidence_interval": [0,0], "predicted_lifetime": null, "units": "probability", "model_used": "", "assumptions": [], "failure_mode": "", "process_sigma_drift": 0, "cv_detects_defect": null}},
+    {"step": 5, "name": "reflow",    "decision": "pass", "reasons": ["Skipped"], "cost_avoided": 0, "skipped": true, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0, "confidence_interval": [0,0], "predicted_lifetime": null, "units": "probability", "model_used": "", "assumptions": [], "failure_mode": "", "process_sigma_drift": 0, "cv_detects_defect": null}},
+    {"step": 6, "name": "test",      "decision": "pass", "reasons": ["Skipped"], "cost_avoided": 0, "skipped": true, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0, "confidence_interval": [0,0], "predicted_lifetime": null, "units": "probability", "model_used": "", "assumptions": [], "failure_mode": "", "process_sigma_drift": 0, "cv_detects_defect": null}},
+    {"step": 7, "name": "final_gate","decision": "pass", "reasons": ["Skipped"], "cost_avoided": 0, "skipped": true, "cv_invoked": false, "cv_confidence": null, "physics_outputs": {"probability_of_failure": 0, "confidence_interval": [0,0], "predicted_lifetime": null, "units": "probability", "model_used": "", "assumptions": [], "failure_mode": "", "process_sigma_drift": 0, "cv_detects_defect": null}}
+  ]
+}
+
+###
