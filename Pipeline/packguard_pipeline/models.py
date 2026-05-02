@@ -9,11 +9,31 @@ This file is the central data contract. Every other team member depends on it:
 Run `python -m packguard_pipeline.export_schema` to regenerate the JSON Schema.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+
+
+# Map of canonical physics-module names → failure-mode tags used by Person 3's
+# debate protocol and aggregator INTERACTION_TERMS. Single source of truth.
+FAILURE_MODE_FOR_MODEL: dict[str, str] = {
+    "coffin_manson":            "solder_fatigue",
+    "blacks_equation":          "electromigration",
+    "pecks_model":              "corrosion",
+    "arrhenius_imc":            "imc_wire_bond",
+    "void_thermal_resistance":  "void_thermal",
+    "wire_sweep":               "wire_sweep_short",
+    "warpage":                  "cte_mismatch",
+    "griffith_fracture":        "die_crack_propagation",
+    "weibull_fit":              "infant_mortality",
+}
+
+
+def failure_mode_for(model_used: str) -> str:
+    """Return Person 3's debate-friendly failure mode tag for a model name."""
+    return FAILURE_MODE_FOR_MODEL.get(model_used, model_used or "unknown")
 
 
 # ---------- Enums ----------
@@ -65,23 +85,30 @@ class PhysicsOutput(BaseModel):
     """
     Standard output of every Person 1 physics function.
 
-    Verified against Person 1's repo (packguard_physics.ReliabilityResult) on Day 1.
-    NOTE: Person 1's actual struct has two extra fields beyond API contract §2:
-      - inputs (dict): what was passed in, for audit
-      - citations (list[str]): JEDEC / textbook references
-    Person 2 (this repo) MUST surface these to Person 3's orchestrator —
-    citations especially are how we earn judge trust.
+    Verified against Person 1's repo (packguard_physics.ReliabilityResult).
+    Person 1's struct has `inputs` and `citations` beyond API contract §2; both
+    are surfaced here. Person 3's debate protocol additionally needs:
+      - failure_mode (str): debate-friendly tag (e.g. "solder_fatigue")
+      - process_sigma_drift (float): SPC drift in sigma units (Rule 2)
+      - cv_detects_defect (Optional[bool]): None=CV not invoked (Rule 1)
 
-    Update API contract §2 to include `inputs` and `citations`.
+    All fields have safe defaults so Person 3's fixture code (which constructs
+    PhysicsOutput with only a subset of fields) keeps working.
     """
-    probability_of_failure: float = Field(ge=0.0, le=1.0)
-    confidence_interval: tuple[float, float]
-    predicted_lifetime: float
-    units: str
-    model_used: str
-    assumptions: list[str]
+    model_config = ConfigDict(extra="ignore")
+
+    probability_of_failure: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence_interval: tuple[float, float] = (0.0, 0.0)
+    predicted_lifetime: float = 0.0
+    units: str = "probability"
+    model_used: str = ""
+    assumptions: list[str] = Field(default_factory=list)
     inputs: dict[str, Any] = Field(default_factory=dict)
     citations: list[str] = Field(default_factory=list)
+    # ── Person 3 debate-protocol surface ─────────────────────────────────
+    failure_mode: str = ""
+    process_sigma_drift: float = 0.0
+    cv_detects_defect: Optional[bool] = None
 
 
 # ---------- Vision / AI tool output ----------
@@ -129,18 +156,249 @@ class ForwardSimPrediction(BaseModel):
 
 # ---------- Per-checkpoint result ----------
 
+_NAME_TO_STEP: dict[str, StepName] = {
+    "dicing": StepName.DICING,
+    "die_attach": StepName.DIE_ATTACH,
+    "wire_bond": StepName.WIRE_BOND,
+    "molding": StepName.MOLDING,
+    "reflow": StepName.REFLOW,
+    "test": StepName.TEST,
+    "final_gate": StepName.FINAL_GATE,
+    "step_1": StepName.DICING,
+    "step_2": StepName.DIE_ATTACH,
+    "step_3": StepName.WIRE_BOND,
+    "step_4": StepName.MOLDING,
+    "step_5": StepName.REFLOW,
+    "step_6": StepName.TEST,
+    "step_7": StepName.FINAL_GATE,
+}
+
+
 class CheckpointResult(BaseModel):
-    """Output of one checkpoint analysis."""
-    checkpoint_id: int = Field(ge=1, le=7)
-    step_name: StepName
-    tools_called: list[ToolCall]
-    action: Action
-    reasons: list[str]  # human-readable trigger explanations
-    rule_fired: Optional[str] = None  # e.g., "Cpk < 1.33", "void_ratio > 25%"
+    """
+    Output of one checkpoint analysis.
+
+    Pre-validators translate Person 3's flat fixture inputs (`step`, `name`,
+    `decision`, `cost_avoided`, `physics_outputs` singular, `cv_invoked`,
+    `cv_confidence`, `skipped`) into the canonical Person 2 fields. Read-side
+    properties expose the same Person 3 names so existing debate / orchestrator
+    code reads us unmodified.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    checkpoint_id: int = Field(default=1, ge=1, le=7)
+    step_name: StepName = StepName.DICING
+    tools_called: list[ToolCall] = Field(default_factory=list)
+    action: Action = Action.PASS_
+    reasons: list[str] = Field(default_factory=list)
+    rule_fired: Optional[str] = None
     forward_sim_prediction: Optional[ForwardSimPrediction] = None
     cost_avoided_usd: float = 0.0
-    started_at: datetime
-    finished_at: datetime
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    finished_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Person 3 compatibility — Pipeline never sets True; orchestrator may.
+    skipped: bool = False
+
+    # ── Pre-validator: accept Person 3's flat input shape ────────────────
+
+    @model_validator(mode="before")
+    @classmethod
+    def _translate_legacy_inputs(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        # step → checkpoint_id
+        if "step" in data and "checkpoint_id" not in data:
+            try:
+                data["checkpoint_id"] = int(data.pop("step"))
+            except (TypeError, ValueError):
+                data.pop("step", None)
+
+        # name → step_name (lowercase string lookup)
+        if "name" in data and "step_name" not in data:
+            n = str(data.pop("name")).lower()
+            data["step_name"] = _NAME_TO_STEP.get(n, StepName.DICING)
+
+        # decision → action
+        if "decision" in data and "action" not in data:
+            try:
+                data["action"] = Action(str(data.pop("decision")).lower())
+            except ValueError:
+                data.pop("decision", None)
+
+        # cost_avoided → cost_avoided_usd
+        if "cost_avoided" in data and "cost_avoided_usd" not in data:
+            data["cost_avoided_usd"] = float(data.pop("cost_avoided") or 0.0)
+
+        # physics_outputs (singular) → first tools_called entry
+        phys = data.pop("physics_outputs", None)
+        if phys is not None and not data.get("tools_called"):
+            if hasattr(phys, "model_dump"):
+                phys_dict = phys.model_dump()
+            elif isinstance(phys, dict):
+                phys_dict = phys
+            else:
+                phys_dict = {}
+            data["tools_called"] = [{
+                "tool_name": phys_dict.get("model_used") or "physics",
+                "tool_type": "deterministic",
+                "output": phys_dict,
+                "confidence": 0.95,
+                "runtime_ms": 1,
+            }]
+
+        # cv_invoked + cv_confidence → synthesise an AI tool call
+        cv_invoked = bool(data.pop("cv_invoked", False))
+        cv_conf = data.pop("cv_confidence", None)
+        if cv_invoked:
+            ai_call = {
+                "tool_name": "vision",
+                "tool_type": "ai",
+                "output": {},
+                "confidence": float(cv_conf) if cv_conf is not None else 0.5,
+                "runtime_ms": 1,
+            }
+            existing = data.setdefault("tools_called", [])
+            existing.append(ai_call)
+
+        return data
+
+    # ── Computed aliases (serialised into JSON for Person 3 + Person 4) ──
+    # These are @computed_field so they appear in model_dump() and the JSON
+    # schema. They give Person 3 his original field names and Person 4 the
+    # UI's expected keys without forcing either to consume Pipeline's
+    # canonical names directly.
+
+    @computed_field
+    @property
+    def step(self) -> int:
+        return self.checkpoint_id
+
+    @computed_field
+    @property
+    def name(self) -> str:
+        """Title-cased name matching UI's STEP_ICONS lookup (e.g. 'Wire Bond')."""
+        return self.step_name.value.replace("_", " ").title()
+
+    @computed_field
+    @property
+    def status(self) -> str:
+        """UI alias: 'pass' | 'flag' | 'kill'."""
+        return self.action.value
+
+    @computed_field
+    @property
+    def decision(self) -> str:
+        """Person 3 alias: 'pass' | 'flag' | 'kill'."""
+        return self.action.value
+
+    @computed_field
+    @property
+    def cost_avoided(self) -> float:
+        return self.cost_avoided_usd
+
+    @computed_field
+    @property
+    def tools_run(self) -> list[str]:
+        """UI alias: just the names of tools that ran."""
+        return [tc.tool_name for tc in self.tools_called]
+
+    @computed_field
+    @property
+    def debate_triggered(self) -> bool:
+        """UI alias: True when this checkpoint fired a debate-protocol rule."""
+        if not self.rule_fired:
+            return False
+        rf = self.rule_fired.lower()
+        return "rule" in rf or "debate" in rf
+
+    @computed_field
+    @property
+    def debate_log(self) -> list[dict[str, Any]]:
+        """UI alias: per-checkpoint debate entries (empty until orchestrator fills)."""
+        return []
+
+    @property
+    def _primary_physics_dict(self) -> dict | None:
+        """Pick the dominant physics output for this checkpoint.
+
+        Prefers lifetime models (coffin_manson, blacks, pecks, arrhenius_imc,
+        void_thermal_resistance) so calibration-style models like weibull_fit
+        (whose characteristic p=0.632 is a property of the Weibull CDF, not
+        a real lot-level failure probability) don't dominate Person 3's
+        per-mode aggregator.
+        """
+        lifetime: list[dict] = []
+        other: list[dict] = []
+        for tc in self.tools_called:
+            if tc.tool_type != ToolType.DETERMINISTIC:
+                continue
+            out = tc.output
+            if "probability_of_failure" not in out:
+                continue
+            if out.get("model_used") in FAILURE_MODE_FOR_MODEL and \
+               FAILURE_MODE_FOR_MODEL[out["model_used"]] in {
+                   "solder_fatigue", "electromigration", "corrosion",
+                   "imc_wire_bond", "void_thermal",
+               }:
+                lifetime.append(out)
+            else:
+                other.append(out)
+        if lifetime:
+            return max(lifetime, key=lambda d: d.get("probability_of_failure", 0.0))
+        if other:
+            return max(other, key=lambda d: d.get("probability_of_failure", 0.0))
+        return None
+
+    @property
+    def physics_outputs(self) -> "PhysicsOutput":
+        """
+        Person 3 alias: a single PhysicsOutput summarising this checkpoint's
+        physics. Prefers lifetime models so calibration-style outputs (e.g.
+        Weibull's characteristic 0.632) don't dominate the orchestrator's
+        per-mode aggregator. Falls back to any deterministic tool, then to a
+        default-zero PhysicsOutput when none ran.
+        """
+        best = self._primary_physics_dict
+        if best is None:
+            return PhysicsOutput(
+                probability_of_failure=0.0,
+                confidence_interval=(0.0, 0.0),
+                predicted_lifetime=0.0,
+                units="",
+                model_used="",
+                assumptions=[],
+            )
+        # Build PhysicsOutput, tolerating extra keys
+        try:
+            return PhysicsOutput(**best)
+        except Exception:
+            return PhysicsOutput(
+                probability_of_failure=float(best.get("probability_of_failure", 0.0)),
+                confidence_interval=tuple(best.get("confidence_interval", (0.0, 0.0))),
+                predicted_lifetime=float(best.get("predicted_lifetime", 0.0)),
+                units=str(best.get("units", "")),
+                model_used=str(best.get("model_used", "")),
+                assumptions=list(best.get("assumptions", [])),
+                inputs=dict(best.get("inputs", {})),
+                citations=list(best.get("citations", [])),
+                failure_mode=str(best.get("failure_mode", "")),
+                process_sigma_drift=float(best.get("process_sigma_drift", 0.0)),
+                cv_detects_defect=best.get("cv_detects_defect"),
+            )
+
+    @property
+    def cv_invoked(self) -> bool:
+        """Person 3 alias: did any AI tool run on this checkpoint?"""
+        return any(tc.tool_type == ToolType.AI for tc in self.tools_called)
+
+    @property
+    def cv_confidence(self) -> Optional[float]:
+        """Person 3 alias: confidence of the first AI tool, or None."""
+        for tc in self.tools_called:
+            if tc.tool_type == ToolType.AI:
+                return tc.confidence
+        return None
 
 
 # ---------- Final decision (Person 3 fills this) ----------
@@ -193,9 +451,46 @@ class LotState(BaseModel):
     Top-level lot object. Created by POST /analyze, mutated as it flows through
     the 7-checkpoint pipeline, finalized when Person 3's orchestrator writes
     `final_decision`.
+
+    Pre-validator accepts Person 3's flat input shape:
+      `target_application` (str) → `application` (Application enum)
+      `overall_decision`   (str) → `decision_state` (DecisionState enum)
+
+    Read-side properties expose `target_application` / `overall_decision` so
+    Person 3's debate / aggregator / service code reads us without changes.
     """
-    # Identity
-    lot_id: str = Field(pattern=r"^LOT-\d{4}-\d{3,}$")  # LOT-2026-001
+    model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _translate_legacy_lot_inputs(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        # target_application → application
+        if "target_application" in data and "application" not in data:
+            try:
+                data["application"] = Application(str(data.pop("target_application")).lower())
+            except ValueError:
+                data.pop("target_application", None)
+
+        # overall_decision (lowercase pass/flag/kill or ship/hold/reject) → decision_state
+        if "overall_decision" in data and "decision_state" not in data:
+            d = str(data.pop("overall_decision")).lower()
+            mapping = {
+                "pass":   DecisionState.PASS_,
+                "flag":   DecisionState.FLAG,
+                "kill":   DecisionState.KILL,
+                "ship":   DecisionState.PASS_,
+                "hold":   DecisionState.FLAG,
+                "reject": DecisionState.KILL,
+            }
+            data["decision_state"] = mapping.get(d, DecisionState.IN_PROGRESS)
+
+        return data
+
+    # Identity — any non-empty string. Convention: LOT-YYYY-NNN.
+    lot_id: str = Field(min_length=1)
     package_type: str  # "BGA-256", "QFN-48", "FCBGA-1234"
     application: Application
     lot_size: int = 4000  # number of chips, default mid of 3000-5000
@@ -205,7 +500,7 @@ class LotState(BaseModel):
     decision_state: DecisionState = DecisionState.IN_PROGRESS
 
     # Inputs
-    input_files: InputFiles
+    input_files: InputFiles = Field(default_factory=InputFiles)
 
     # Per-checkpoint findings
     checkpoints: list[CheckpointResult] = Field(default_factory=list)
@@ -213,9 +508,92 @@ class LotState(BaseModel):
     # Final decision (filled by Person 3 at Checkpoint 7)
     final_decision: Optional[FinalDecision] = None
 
-    # Audit
-    created_at: datetime
-    updated_at: datetime
+    # Audit (default-now so lot construction stays terse)
+    created_at: datetime = Field(default_factory=lambda: datetime.now())
+    updated_at: datetime = Field(default_factory=lambda: datetime.now())
+
+    # Person 3 metadata bag (debate / KB / orchestrator may stash anything here)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    # ── Computed aliases (serialised into JSON for Person 3 + Person 4) ──
+
+    @computed_field
+    @property
+    def target_application(self) -> str:
+        """Person 3 alias: lower-case application string."""
+        return self.application.value
+
+    @computed_field
+    @property
+    def overall_decision(self) -> str:
+        """
+        Person 3 vocab: 'pass' | 'flag' | 'kill' | 'in_progress'.
+        UI also accepts these (its check is `!= 'in_progress'`).
+        """
+        return {
+            DecisionState.IN_PROGRESS: "in_progress",
+            DecisionState.PASS_: "pass",
+            DecisionState.FLAG: "flag",
+            DecisionState.KILL: "kill",
+        }[self.decision_state]
+
+    @computed_field
+    @property
+    def final_verdict(self) -> Optional[str]:
+        """UI vocab from final_decision: 'ship' | 'hold' | 'reject' | None."""
+        if self.final_decision is None:
+            return None
+        return self.final_decision.verdict.value.lower()
+
+    @computed_field
+    @property
+    def total_cost_avoided(self) -> float:
+        """UI alias: lot-level sum of every checkpoint's cost_avoided."""
+        return float(sum(cp.cost_avoided_usd for cp in self.checkpoints))
+
+    @computed_field
+    @property
+    def forward_sim(self) -> Optional[dict[str, Any]]:
+        """
+        UI alias: lifts the first checkpoint's `forward_sim_prediction` to the
+        lot top level and translates Pipeline's shape into UI's `ForwardSimResult`.
+        Returns None when no checkpoint computed a forward simulation.
+        """
+        for cp in self.checkpoints:
+            fs = cp.forward_sim_prediction
+            if fs is None:
+                continue
+            ui_steps: list[dict[str, Any]] = []
+            for idx, s in enumerate(fs.steps):
+                # The predicted_state dict can hold either crack_length_mm or crack_mm
+                crack = (
+                    s.predicted_state.get("crack_length_mm")
+                    or s.predicted_state.get("crack_mm")
+                    or 0.0
+                )
+                ui_steps.append({
+                    "step_number": idx + 1,
+                    "step_name": s.step_name.value.replace("_", " ").title(),
+                    "crack_length_mm": float(crack),
+                    "stress_applied": s.failure_mode or "",
+                })
+            fail_step_num = -1
+            if fs.fails_at_step is not None:
+                for idx, s in enumerate(fs.steps):
+                    if s.step_name == fs.fails_at_step:
+                        fail_step_num = idx + 1
+                        break
+            return {
+                "initial_crack_mm": float(fs.starting_state.get("crack_length_mm", 0.0)),
+                # Griffith critical at typical reflow stress for silicon. UI uses
+                # this to draw the red threshold line on the simulation chart.
+                "critical_threshold_mm": 0.015,
+                "steps": ui_steps,
+                "failure_step": fail_step_num,
+                "failure_reason": fs.failure_reason or fs.narrative,
+                "cost_saved": float(fs.cost_avoided_usd),
+            }
+        return None
 
 
 # ---------- API request/response wrappers ----------

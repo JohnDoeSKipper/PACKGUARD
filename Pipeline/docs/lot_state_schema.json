@@ -20,16 +20,18 @@
       "type": "string"
     },
     "CheckpointResult": {
-      "description": "Output of one checkpoint analysis.",
+      "description": "Output of one checkpoint analysis.\n\nPre-validators translate Person 3's flat fixture inputs (`step`, `name`,\n`decision`, `cost_avoided`, `physics_outputs` singular, `cv_invoked`,\n`cv_confidence`, `skipped`) into the canonical Person 2 fields. Read-side\nproperties expose the same Person 3 names so existing debate / orchestrator\ncode reads us unmodified.",
       "properties": {
         "checkpoint_id": {
+          "default": 1,
           "maximum": 7,
           "minimum": 1,
           "title": "Checkpoint Id",
           "type": "integer"
         },
         "step_name": {
-          "$ref": "#/$defs/StepName"
+          "$ref": "#/$defs/StepName",
+          "default": "DICING"
         },
         "tools_called": {
           "items": {
@@ -39,7 +41,8 @@
           "type": "array"
         },
         "action": {
-          "$ref": "#/$defs/Action"
+          "$ref": "#/$defs/Action",
+          "default": "pass"
         },
         "reasons": {
           "items": {
@@ -85,16 +88,74 @@
           "format": "date-time",
           "title": "Finished At",
           "type": "string"
+        },
+        "skipped": {
+          "default": false,
+          "title": "Skipped",
+          "type": "boolean"
+        },
+        "step": {
+          "readOnly": true,
+          "title": "Step",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Title-cased name matching UI's STEP_ICONS lookup (e.g. 'Wire Bond').",
+          "readOnly": true,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "description": "UI alias: 'pass' | 'flag' | 'kill'.",
+          "readOnly": true,
+          "title": "Status",
+          "type": "string"
+        },
+        "decision": {
+          "description": "Person 3 alias: 'pass' | 'flag' | 'kill'.",
+          "readOnly": true,
+          "title": "Decision",
+          "type": "string"
+        },
+        "cost_avoided": {
+          "readOnly": true,
+          "title": "Cost Avoided",
+          "type": "number"
+        },
+        "tools_run": {
+          "description": "UI alias: just the names of tools that ran.",
+          "items": {
+            "type": "string"
+          },
+          "readOnly": true,
+          "title": "Tools Run",
+          "type": "array"
+        },
+        "debate_triggered": {
+          "description": "UI alias: True when this checkpoint fired a debate-protocol rule.",
+          "readOnly": true,
+          "title": "Debate Triggered",
+          "type": "boolean"
+        },
+        "debate_log": {
+          "description": "UI alias: per-checkpoint debate entries (empty until orchestrator fills).",
+          "items": {
+            "type": "object"
+          },
+          "readOnly": true,
+          "title": "Debate Log",
+          "type": "array"
         }
       },
       "required": [
-        "checkpoint_id",
-        "step_name",
-        "tools_called",
-        "action",
-        "reasons",
-        "started_at",
-        "finished_at"
+        "step",
+        "name",
+        "status",
+        "decision",
+        "cost_avoided",
+        "tools_run",
+        "debate_triggered",
+        "debate_log"
       ],
       "title": "CheckpointResult",
       "type": "object"
@@ -505,10 +566,10 @@
       "type": "string"
     }
   },
-  "description": "Top-level lot object. Created by POST /analyze, mutated as it flows through\nthe 7-checkpoint pipeline, finalized when Person 3's orchestrator writes\n`final_decision`.",
+  "description": "Top-level lot object. Created by POST /analyze, mutated as it flows through\nthe 7-checkpoint pipeline, finalized when Person 3's orchestrator writes\n`final_decision`.\n\nPre-validator accepts Person 3's flat input shape:\n  `target_application` (str) \u2192 `application` (Application enum)\n  `overall_decision`   (str) \u2192 `decision_state` (DecisionState enum)\n\nRead-side properties expose `target_application` / `overall_decision` so\nPerson 3's debate / aggregator / service code reads us without changes.",
   "properties": {
     "lot_id": {
-      "pattern": "^LOT-\\d{4}-\\d{3,}$",
+      "minLength": 1,
       "title": "Lot Id",
       "type": "string"
     },
@@ -565,15 +626,65 @@
       "format": "date-time",
       "title": "Updated At",
       "type": "string"
+    },
+    "metadata": {
+      "title": "Metadata",
+      "type": "object"
+    },
+    "target_application": {
+      "description": "Person 3 alias: lower-case application string.",
+      "readOnly": true,
+      "title": "Target Application",
+      "type": "string"
+    },
+    "overall_decision": {
+      "description": "Person 3 vocab: 'pass' | 'flag' | 'kill' | 'in_progress'.\nUI also accepts these (its check is `!= 'in_progress'`).",
+      "readOnly": true,
+      "title": "Overall Decision",
+      "type": "string"
+    },
+    "final_verdict": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "UI vocab from final_decision: 'ship' | 'hold' | 'reject' | None.",
+      "readOnly": true,
+      "title": "Final Verdict"
+    },
+    "total_cost_avoided": {
+      "description": "UI alias: lot-level sum of every checkpoint's cost_avoided.",
+      "readOnly": true,
+      "title": "Total Cost Avoided",
+      "type": "number"
+    },
+    "forward_sim": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "UI alias: lifts the first checkpoint's `forward_sim_prediction` to the\nlot top level and translates Pipeline's shape into UI's `ForwardSimResult`.\nReturns None when no checkpoint computed a forward simulation.",
+      "readOnly": true,
+      "title": "Forward Sim"
     }
   },
   "required": [
     "lot_id",
     "package_type",
     "application",
-    "input_files",
-    "created_at",
-    "updated_at"
+    "target_application",
+    "overall_decision",
+    "final_verdict",
+    "total_cost_avoided",
+    "forward_sim"
   ],
   "title": "LotState",
   "type": "object"

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # PackGuard Person 3 — Quick Start Script
 # Usage:  bash start.sh
+#
+# Port:        8002 (Pipeline owns 8001; UI runs on 3000)
+# Depends on:  packguard_physics + packguard_pipeline (siblings in the monorepo)
 
 set -e
 cd "$(dirname "$0")"
@@ -16,11 +19,9 @@ python3 --version || { echo "ERROR: python3 not found"; exit 1; }
 
 # ── 2. Install dependencies ──────────────────────────────────────────────────
 echo "→ Installing dependencies..."
-pip install fastapi uvicorn pydantic python-multipart reportlab \
-            faiss-cpu scikit-learn pytest anthropic \
-            --quiet --break-system-packages 2>/dev/null \
-  || pip install fastapi uvicorn pydantic python-multipart reportlab \
-                 faiss-cpu scikit-learn pytest anthropic --quiet
+pip install -r requirements.txt --quiet
+pip install -e ../Pipeline --quiet
+pip install -e ../Physics_Model --quiet 2>/dev/null || true
 
 # ── 3. Build KB index if missing ─────────────────────────────────────────────
 if [ ! -f kb/index.faiss ]; then
@@ -32,23 +33,24 @@ fi
 
 # ── 4. Run tests ─────────────────────────────────────────────────────────────
 echo "→ Running unit tests..."
-python3 -m pytest tests/test_all.py -q --tb=short
+python3 -m pytest tests/ -q --tb=short
 
 # ── 5. Check API key ─────────────────────────────────────────────────────────
 if [ -z "$ANTHROPIC_API_KEY" ]; then
   echo ""
   echo "⚠  ANTHROPIC_API_KEY is not set."
-  echo "   The /orchestrate endpoint will run in deterministic-only mode."
-  echo "   To enable the full LLM narrative, run:"
+  echo "   The /orchestrate endpoints will return 500 until you export it:"
   echo "     export ANTHROPIC_API_KEY='sk-ant-...'"
+  echo "   /debate, /aggregate, and /scenarios still work without it."
   echo ""
 fi
 
 # ── 6. Start FastAPI ─────────────────────────────────────────────────────────
+PORT="${PORT:-8002}"
 echo ""
-echo "→ Starting API server on http://localhost:8001"
-echo "   Swagger docs: http://localhost:8001/docs"
-echo "   Frontend:     open frontend/index.html in your browser"
+echo "→ Starting Orchestrator on http://localhost:${PORT}"
+echo "   Swagger docs:   http://localhost:${PORT}/docs"
+echo "   Pipeline (sib): ${PIPELINE_URL:-http://localhost:8001}"
 echo "   Press Ctrl+C to stop"
 echo ""
-uvicorn main:app --reload --port 8001 --host 0.0.0.0
+uvicorn main:app --reload --port "${PORT}" --host 0.0.0.0

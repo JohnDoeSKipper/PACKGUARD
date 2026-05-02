@@ -2,7 +2,7 @@
 ### Install extension: humao.rest-client
 ### Click "Send Request" above any request to run it
 
-@baseUrl = http://localhost:8001
+@baseUrl = http://localhost:8002
 
 # ─────────────────────────────────────────────────────────────────────────────
 ### Health check

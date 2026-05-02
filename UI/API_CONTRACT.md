@@ -1,53 +1,169 @@
 # PackGuard v2.0 — API Contract
-**Owner: Person 4. Update this file whenever any interface changes.**
-Last updated: [YOUR NAME] — Day 1
+*Owner: Person 4 (UI). Update this file whenever any interface changes.*
+*Last updated: Day 2 integration sync.*
 
 ---
 
-## 1. Lot State JSON (Person 2 → Person 4 and Person 3)
-Person 2: please paste your full lot state JSON schema here.
-In the meantime, all team members use the TypeScript types in `lib/types.ts`.
+## 1. Service map
 
-Example lot_id format: "LOT-2026-001"
+```
+:8001  Pipeline       (Person 2)
+:8002  Orchestrator   (Person 3)
+:3000  UI             (Person 4)
+```
 
-## 2. Physics Function Output (Person 1 → Person 2 and Person 3)
-Every physics function must return exactly this shape:
+## 2. Canonical schema
+
+**Source of truth:** `Pipeline/packguard_pipeline/models.py` (Pydantic v2).
+
+Every other consumer either:
+- Imports from `packguard_pipeline.models` (Person 3 — `Orchestrator/lot_schema.py`),
+- Or generates types from the JSON schema at `Pipeline/docs/lot_state_schema.json`
+  (Person 4 — `UI/lib/types.ts`).
+
+The Pipeline's `LotState` and `CheckpointResult` models include
+`@computed_field` aliases so the JSON output carries both Person 3's vocabulary
+(`step`, `name`, `decision`, `cost_avoided`, `target_application`,
+`overall_decision`) and Person 4's UI vocabulary (`status`, `tools_run`,
+`debate_triggered`, `total_cost_avoided`, `forward_sim`). No translation layer
+in the consumer is needed.
+
+## 3. PhysicsOutput (every Person 1 physics function)
+
+```ts
 {
-  "probability_of_failure": float (0.0 to 1.0),
-  "confidence_interval": [float, float],
-  "predicted_lifetime": float,
-  "units": string,
-  "model_used": string,
-  "assumptions": [string, ...]
+  probability_of_failure: number;     // 0.0..1.0
+  confidence_interval: [number, number];
+  predicted_lifetime: number;
+  units: string;
+  model_used: string;
+  assumptions: string[];
+  inputs: Record<string, unknown>;    // echo of inputs (audit)
+  citations: string[];                // JEDEC / textbook refs
+  failure_mode: string;               // "solder_fatigue" etc — debate vocab
+  process_sigma_drift: number;        // SPC drift (sigma units)
+  cv_detects_defect: boolean | null;  // null = CV not invoked
 }
+```
 
-## 3. Pipeline Service (Person 2 → Person 4)
-Base URL: http://localhost:[PORT] ← Person 2: fill in your port number
+## 4. Pipeline service (Person 2 → everyone)
 
-POST /analyze
-  Body: multipart/form-data { files, package_type, application }
-  Returns: { lot_id: string }
+**Base URL:** `http://localhost:8001`
 
-GET /lot/{lot_id}
-  Returns: Full LotState object (see lib/types.ts)
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/healthz` | liveness |
+| `GET` | `/` | service metadata |
+| `POST` | `/analyze` (multipart) | start a new lot. Body: `package_type`, `application`, `files[]`. Returns `{ lot_id, decision_state, current_step, message }`. |
+| `GET` | `/lot/{lot_id}` | full `LotState` JSON |
+| `GET` | `/lots` | list known lot_ids (debug) |
+| `GET` | `/demo/{scenario}` | one-click demo. `scenario ∈ {clean, early_kill, debate}`. |
+| `GET` | `/schema/lot_state` | live JSON schema dump |
+| `GET` | `/docs` | Swagger UI |
 
-## 4. Orchestrator Service (Person 3 → Person 4)
-Base URL: http://localhost:8001
+### Demo lot ids
+- `clean` → `LOT-2026-001` (consumer, all PASS, ships)
+- `early_kill` → `LOT-2026-002` (automotive, C1 KILL, $1,847 saved)
+- `debate` → `LOT-2026-003` (server, Vision OK + 3.2σ SPC drift → HOLD)
 
-POST /report
-  Body: { lot_id: string }
-  Returns: FinalReport object (see lib/types.ts)
+## 5. Orchestrator service (Person 3 → UI)
 
-GET /report/{lot_id}/pdf
-  Returns: { pdf_url: string }
+**Base URL:** `http://localhost:8002`
 
-## 5. CORS
-Person 2 and Person 3: add this to your FastAPI app on Day 5:
-  from fastapi.middleware.cors import CORSMiddleware
-  app.add_middleware(CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"])
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/health` | liveness + sub-service URLs |
+| `GET` | `/scenarios/{name}` | pre-built lot dicts (calls Pipeline under the hood) |
+| `POST` | `/orchestrate` | accept `LotState` body → return JSON report |
+| `POST` | `/orchestrate/pdf` | accept `LotState` body → return PDF |
+| `POST` | `/orchestrate/{lot_id}` | **bridge**: fetch from Pipeline, return JSON report. UI uses this. |
+| `POST` | `/orchestrate/{lot_id}/pdf` | **bridge**: fetch from Pipeline, return PDF. UI uses this. |
+| `POST` | `/debate` | deterministic debate only (no LLM) |
+| `POST` | `/aggregate` | probability aggregator only (no LLM) |
 
-## 6. Change Log
-[DATE] — Person 4: Created initial contract
+### FinalReport (returned by `/orchestrate*`)
+
+```ts
+{
+  lot_id: string;
+  overall_decision: 'ship' | 'hold' | 'reject';
+  overall_probability_of_failure: number;
+  predicted_lifetime_years: number;
+  confidence_interval: [number, number];
+  failure_modes: Array<{
+    name: string;
+    probability: number;
+    predicted_lifetime_years: number;
+    model_used: string;
+    threshold_dppm: number;
+  }>;
+  narrative: string;                     // LLM-written engineer-readable
+  recommended_actions: string[];
+  debate_log: Array<{
+    rule_number: number;
+    rule_name: string;
+    tool_a: string; tool_a_says: string;
+    tool_b: string; tool_b_says: string;
+    winner: string; reason: string;
+  }>;
+  pdf_url?: string;
+  cost_saved_usd?: number;
+  _audit?: Record<string, unknown>;
+}
+```
+
+## 6. UI (Person 4 → judges)
+
+**Base URL:** `http://localhost:3000`
+
+Routes:
+
+- `/input` — drag-and-drop, lot-config form, demo scenario buttons
+- `/pipeline?lot_id=…` — Live Pipeline View (animated)
+- `/simulation?lot_id=…` — Forward-Sim Visualizer (D3 timeline)
+- `/report?lot_id=…` — Final Report page (radar chart + narrative + PDF)
+- `/knowledge` — Knowledge Tree of failure modes
+- `/calculator` — Cost-of-Quality calculator
+
+Backend wiring lives in [`lib/api.ts`](lib/api.ts). Toggle `USE_MOCK = true`
+for offline UI development.
+
+## 7. CORS
+
+Pipeline (`:8001`) and Orchestrator (`:8002`) both whitelist
+`http://localhost:3000` and `http://127.0.0.1:3000`, all methods, all headers,
+credentials enabled.
+
+## 8. Demo dataset
+
+Generated by `python Pipeline/scripts/gen_demo_data.py`:
+
+```
+Pipeline/data/synthetic/
+├── dicing/LOT-2026-{001,002,003}/die_*.png + labels.json
+├── voids/LOT-2026-{001,002,003}/xray_*.png + labels.json
+├── solder/LOT-2026-{001,002,003}/solder_*.png + labels.json
+└── csvs/LOT-2026-{001,002,003}/{reflow,bond_force,burn_in}.csv
+```
+
+## 9. Run all 3 services
+
+```bash
+cp .env.example .env       # fill in ANTHROPIC_API_KEY
+bash start_all.sh
+```
+
+Spawns Pipeline on 8001, Orchestrator on 8002, UI on 3000. Logs to `.logs/`.
+
+## 10. Change log
+
+- **Day 2 — Person 2/3/4 unification.** Pipeline's Pydantic models become the
+  canonical schema. Orchestrator/lot_schema.py becomes a re-export.
+  Orchestrator port → 8002. UI lib/api.ts URLs realigned (Pipeline=8001,
+  Orchestrator=8002). Pipeline adds `@computed_field` aliases:
+  `step / name / status / tools_run / cost_avoided / debate_triggered /
+  debate_log / target_application / overall_decision / total_cost_avoided /
+  forward_sim / final_verdict`. Orchestrator gains
+  `POST /orchestrate/{lot_id}` and `/pdf` bridge endpoints. PhysicsOutput
+  gains `failure_mode / process_sigma_drift / cv_detects_defect`.
+- **Day 1 — Initial.** Person 4 created first cut.

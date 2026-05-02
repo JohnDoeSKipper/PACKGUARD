@@ -283,18 +283,10 @@ def demo_wire_bond_analysis(lot: LotState) -> dict[str, Any]:
     s = scenario_for(lot)
     p = _profile(lot)
 
-    # Real Arrhenius IMC growth
-    arrhenius_call = pa.arrhenius_imc(
-        wire_bond_temps_C=p["wire_temps"],
-        wire_bond_times_h=p["wire_times"],
-        wire_pad_metallurgy=p["wire_metallurgy"],
-    )
-    imc_um = float(arrhenius_call.output.get("predicted_lifetime", 2.4))
-
     # SPC parameters by scenario (debate has the drift)
     if s == SCENARIO_DEBATE:
         cpk = 1.21
-        sigma_drift = 2.4
+        sigma_drift = 3.2          # > 3σ → fires Person 3 debate Rule 2
         sweep_pct = 0.04
         vision_says_ok = True
     else:
@@ -302,6 +294,17 @@ def demo_wire_bond_analysis(lot: LotState) -> dict[str, Any]:
         sigma_drift = 0.6
         sweep_pct = 0.02
         vision_says_ok = True
+
+    # Real Arrhenius IMC growth — surface the SPC drift on the physics output
+    # so Person 3's debate.run_debate sees it on chk.physics_outputs.
+    arrhenius_call = pa.arrhenius_imc(
+        wire_bond_temps_C=p["wire_temps"],
+        wire_bond_times_h=p["wire_times"],
+        wire_pad_metallurgy=p["wire_metallurgy"],
+        process_sigma_drift=sigma_drift,
+        cv_detects_defect=(False if (s == SCENARIO_DEBATE and vision_says_ok) else None),
+    )
+    imc_um = float(arrhenius_call.output.get("predicted_lifetime", 2.4))
 
     spc_call = ToolCall(
         tool_name="bond_pull_shear_spc",
@@ -319,8 +322,12 @@ def demo_wire_bond_analysis(lot: LotState) -> dict[str, Any]:
     vision_call = ToolCall(
         tool_name="vision_wire_sweep",
         tool_type=ToolType.AI,
-        output={"detected_anomalies": 0, "model": "YOLOv8n-finetuned"},
-        confidence=0.91,
+        output={
+            "detected_anomalies": 0,
+            "model": "YOLOv8n-finetuned",
+            "cv_detects_defect": False if vision_says_ok else True,
+        },
+        confidence=0.61 if s == SCENARIO_DEBATE else 0.91,
         runtime_ms=180,
     )
 

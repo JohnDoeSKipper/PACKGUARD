@@ -36,19 +36,34 @@ from packguard_physics.weibull_fit import fit_weibull
 from packguard_physics.survival_simulator import simulate_defect, SimulationTrace
 
 from .models import (
+    FAILURE_MODE_FOR_MODEL,
     ForwardSimPrediction,
     ForwardSimStep,
     StepName,
     ToolCall,
     ToolType,
+    failure_mode_for,
 )
 
 
 # ---------- ReliabilityResult → dict ----------
 
-def reliability_to_dict(r: ReliabilityResult) -> dict[str, Any]:
-    """Convert Pydantic ReliabilityResult to a plain JSON-safe dict."""
-    return r.model_dump(mode="json")
+def reliability_to_dict(
+    r: ReliabilityResult,
+    *,
+    process_sigma_drift: float = 0.0,
+    cv_detects_defect: Optional[bool] = None,
+) -> dict[str, Any]:
+    """
+    Convert Pydantic ReliabilityResult to a plain dict, augmented with the
+    Person 3 debate-protocol surface (failure_mode, process_sigma_drift,
+    cv_detects_defect).
+    """
+    d = r.model_dump(mode="json")
+    d["failure_mode"] = failure_mode_for(r.model_used)
+    d["process_sigma_drift"] = float(process_sigma_drift)
+    d["cv_detects_defect"] = cv_detects_defect
+    return d
 
 
 # ---------- Timed call helpers ----------
@@ -65,6 +80,8 @@ def physics_tool_call(
     *,
     tool_name: str,
     fn,
+    process_sigma_drift: float = 0.0,
+    cv_detects_defect: Optional[bool] = None,
     **fn_kwargs,
 ) -> ToolCall:
     """Call a physics function and wrap result in a ToolCall."""
@@ -72,7 +89,11 @@ def physics_tool_call(
     return ToolCall(
         tool_name=tool_name,
         tool_type=ToolType.DETERMINISTIC,
-        output=reliability_to_dict(r),
+        output=reliability_to_dict(
+            r,
+            process_sigma_drift=process_sigma_drift,
+            cv_detects_defect=cv_detects_defect,
+        ),
         confidence=1.0 - abs(r.confidence_interval[1] - r.confidence_interval[0]) / 2.0,
         runtime_ms=ms,
     )
@@ -80,10 +101,16 @@ def physics_tool_call(
 
 # ---------- Per-checkpoint convenience wrappers ----------
 
-def griffith(crack_length_mm: float, applied_stress_MPa: float = 80) -> ToolCall:
+def griffith(
+    crack_length_mm: float,
+    applied_stress_MPa: float = 80,
+    *,
+    cv_detects_defect: Optional[bool] = None,
+) -> ToolCall:
     return physics_tool_call(
         tool_name="griffith_fracture",
         fn=assess_crack_growth,
+        cv_detects_defect=cv_detects_defect,
         crack_length_mm=crack_length_mm,
         applied_stress_MPa=applied_stress_MPa,
     )
@@ -94,10 +121,13 @@ def coffin_manson(
     cycles_per_year: float,
     service_life_years: float,
     solder_alloy: str = "SAC305",
+    *,
+    process_sigma_drift: float = 0.0,
 ) -> ToolCall:
     return physics_tool_call(
         tool_name="coffin_manson",
         fn=predict_solder_fatigue,
+        process_sigma_drift=process_sigma_drift,
         delta_t_celsius=delta_t_celsius,
         cycles_per_year=cycles_per_year,
         service_life_years=service_life_years,
@@ -141,10 +171,15 @@ def arrhenius_imc(
     wire_bond_temps_C: list[float],
     wire_bond_times_h: list[float],
     wire_pad_metallurgy: str = "Cu-Al",
+    *,
+    process_sigma_drift: float = 0.0,
+    cv_detects_defect: Optional[bool] = None,
 ) -> ToolCall:
     return physics_tool_call(
         tool_name="arrhenius_imc",
         fn=predict_imc_thickness,
+        process_sigma_drift=process_sigma_drift,
+        cv_detects_defect=cv_detects_defect,
         temperature_history_celsius=wire_bond_temps_C,
         time_at_temperature_hours=wire_bond_times_h,
         wire_pad_metallurgy=wire_pad_metallurgy,

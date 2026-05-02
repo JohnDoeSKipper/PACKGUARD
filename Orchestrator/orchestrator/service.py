@@ -56,8 +56,10 @@ def _call_anthropic(context: dict) -> dict:
 
     client = anthropic.Anthropic(api_key=api_key)
 
+    model_id = os.environ.get("PACKGUARD_MODEL", "claude-opus-4-7")
+
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=model_id,
         max_tokens=1500,
         temperature=0,          # CRITICAL: temperature=0 for determinism
         system=SYSTEM_PROMPT,
@@ -199,7 +201,7 @@ def run_orchestrator(lot_dict: dict) -> dict:
         "debate":         context["debate"],
         "per_mode_probs": per_mode,
         "kb_cases_used":  [c.get("id") for c in kb_cases],
-        "model_called":   "claude-sonnet-4-20250514",
+        "model_called":   os.environ.get("PACKGUARD_MODEL", "claude-opus-4-7"),
         "temperature":    0,
     }
 
