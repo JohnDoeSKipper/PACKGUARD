@@ -1,0 +1,57 @@
+{
+  "griffith_kill_example": {
+    "probability_of_failure": 1.0,
+    "confidence_interval": [
+      1.0,
+      1.0
+    ],
+    "predicted_lifetime": 0.015228033374445374,
+    "units": "mm",
+    "model_used": "griffith_fracture",
+    "assumptions": [
+      "Material: silicon, K_Ic = 0.83 MPa\u00b7\u221am",
+      "Plane-strain, mode-I loading assumed",
+      "Semi-elliptical surface crack geometry (edge-crack factor = 1)",
+      "15% scatter on crack size measurement"
+    ],
+    "inputs": {
+      "crack_length_mm": 1.8,
+      "applied_stress_MPa": 120,
+      "fracture_toughness_MPa_sqrt_m": 0.83,
+      "material": "silicon",
+      "critical_crack_length_mm": 0.015228033374445374
+    },
+    "citations": [
+      "Griffith AA, 'The phenomena of rupture and flow in solids,' Phil. Trans. R. Soc. Lond. A, 221, 1921, pp. 163-198.",
+      "Chen CP, Leipold MH, 'Fracture toughness of silicon,' Am. Ceram. Soc. Bull. 59(4), 1980, pp. 469-472.",
+      "Lawn BR, Wilshaw TR, 'Fracture of Brittle Solids,' Cambridge Univ. Press, 1975."
+    ]
+  },
+  "coffin_manson_clean_example": {
+    "probability_of_failure": 0.0006434710129138763,
+    "confidence_interval": [
+      5.759717253093379e-07,
+      0.057741158831740635
+    ],
+    "predicted_lifetime": 12500.0,
+    "units": "cycles",
+    "model_used": "coffin_manson",
+    "assumptions": [
+      "Alloy: SAC305, n=2.0, C=20000000.0 (Schubert et al. 2003)",
+      "Lognormal scatter sigma=0.5 per IPC-9701A",
+      "Single \u0394T amplitude; no mean-temperature correction",
+      "Isothermal fatigue; no creep-fatigue interaction term"
+    ],
+    "inputs": {
+      "delta_t_celsius": 40,
+      "cycles_per_year": 500,
+      "service_life_years": 5,
+      "solder_alloy": "SAC305",
+      "total_cycles": 2500
+    },
+    "citations": [
+      "Schubert A et al., 'Fatigue Life Models for SnAgCu and SnPb Solder Joints,' Proc. 53rd ECTC, 2003, pp. 978-984.",
+      "IPC-9701A, 'Performance Test Methods and Qualification Requirements for Surface Mount Solder Attachments,' IPC, 2006."
+    ]
+  }
+}

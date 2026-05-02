@@ -1,0 +1,113 @@
+{
+  "lot_id": "LOT-2026-002",
+  "package_type": "BGA-256",
+  "application": "automotive",
+  "lot_size": 4000,
+  "current_step": 1,
+  "decision_state": "KILL",
+  "input_files": {
+    "xray_images": [],
+    "aoi_images": [],
+    "reflow_csv": null,
+    "bond_force_log": null,
+    "test_data_csv": null,
+    "material_spec_json": null
+  },
+  "checkpoints": [
+    {
+      "checkpoint_id": 1,
+      "step_name": "DICING",
+      "tools_called": [
+        {
+          "tool_name": "edge_chip_classifier",
+          "tool_type": "deterministic",
+          "output": {
+            "max_chip_um": 95,
+            "fail_count": 14,
+            "spec_um": 50,
+            "standard": "JEDEC JESD22-B116"
+          },
+          "confidence": 0.99,
+          "runtime_ms": 8
+        },
+        {
+          "tool_name": "griffith_fracture",
+          "tool_type": "deterministic",
+          "output": {
+            "probability_of_failure": 1.0,
+            "confidence_interval": [
+              1.0,
+              1.0
+            ],
+            "predicted_lifetime": 0.015228033374445374,
+            "units": "mm",
+            "model_used": "griffith_fracture",
+            "assumptions": [
+              "Material: silicon, K_Ic = 0.83 MPa\u00c2\u00b7\u00e2\u02c6\u0161m",
+              "Plane-strain, mode-I loading assumed",
+              "Semi-elliptical surface crack geometry (edge-crack factor = 1)",
+              "15% scatter on crack size measurement"
+            ],
+            "inputs": {
+              "crack_length_mm": 1.8,
+              "applied_stress_MPa": 120.0,
+              "fracture_toughness_MPa_sqrt_m": 0.83,
+              "material": "silicon",
+              "critical_crack_length_mm": 0.015228033374445374
+            },
+            "citations": [
+              "Griffith AA, 'The phenomena of rupture and flow in solids,' Phil. Trans. R. Soc. Lond. A, 221, 1921, pp. 163-198.",
+              "Chen CP, Leipold MH, 'Fracture toughness of silicon,' Am. Ceram. Soc. Bull. 59(4), 1980, pp. 469-472.",
+              "Lawn BR, Wilshaw TR, 'Fracture of Brittle Solids,' Cambridge Univ. Press, 1975."
+            ]
+          },
+          "confidence": 1.0,
+          "runtime_ms": 1
+        },
+        {
+          "tool_name": "survival_simulator",
+          "tool_type": "deterministic",
+          "output": {
+            "survived": false,
+            "kill_step": "die_attach",
+            "n_steps": 1,
+            "profile": "automotive"
+          },
+          "confidence": 0.95,
+          "runtime_ms": 1
+        }
+      ],
+      "action": "kill",
+      "reasons": [
+        "Worst crack 1.80mm exceeds kill threshold 1.5mm"
+      ],
+      "rule_fired": "crack_length > 1.5mm (JEDEC JESD22-B116)",
+      "forward_sim_prediction": {
+        "starting_state": {
+          "crack_length_mm": 1.8
+        },
+        "steps": [
+          {
+            "step_name": "DIE_ATTACH",
+            "predicted_state": {
+              "crack_mm": 2.115,
+              "p_fail": 1.0
+            },
+            "will_fail": true,
+            "failure_mode": "stress=80 MPa, crack grew by 0.3150 mm"
+          }
+        ],
+        "fails_at_step": "DIE_ATTACH",
+        "failure_reason": "Crack reaches critical state at die_attach (P(fail)=1.000, crack_mm=2.115 mm)",
+        "cost_avoided_usd": 1847.0,
+        "narrative": "1.8mm crack on automotive profile: forward simulation predicts catastrophic failure at die_attach. Killing now saves $1,847 per lot (full downstream processing cost)."
+      },
+      "cost_avoided_usd": 1847.0,
+      "started_at": "2026-05-02T17:06:50.110646Z",
+      "finished_at": "2026-05-02T17:06:50.110646Z"
+    }
+  ],
+  "final_decision": null,
+  "created_at": "2026-05-02T17:06:50.110479Z",
+  "updated_at": "2026-05-02T17:06:50.110666Z"
+}
