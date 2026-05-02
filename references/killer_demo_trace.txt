@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.4, pytest-9.0.3, pluggy-1.6.0 -- /Users/jaredang/Documents/packguard-physics/.venv/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/jaredang/Documents/packguard-physics
+configfile: pyproject.toml
+plugins: cov-7.1.0
+collecting ... collected 1 item
+
+tests/test_survival_simulator.py::test_killer_demo_scenario 
+=== Survival Simulation: crack=1.8mm, profile=automotive, alloy=SAC305 ===
+  [die_attach          ] KILLED    P(fail)=1.0000  crack_mm=2.1150 mm
+                           → stress=80 MPa, crack grew by 0.3150 mm
+
+  OUTCOME: FAILS at die_attach
+
+PASSED
+
+============================== 1 passed in 0.71s ===============================
