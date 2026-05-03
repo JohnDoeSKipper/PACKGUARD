@@ -1,4 +1,5 @@
 *.egg-info/
+.env
 .logs/
 __pycache__/
 logs/*

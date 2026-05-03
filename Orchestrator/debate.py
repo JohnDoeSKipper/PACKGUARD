@@ -62,8 +62,10 @@ def run_debate(lot: LotState) -> DebateResolution:
             )
 
     # ── Rule 2: Process beats specification ───────────────────────────────────
-    # SPC drift >3σ means the process will be out-of-spec soon even if it
-    # passes today's test. Drift beats a green spec result.
+    # SPC drift >3σ means the process is unstable and the lot needs human
+    # review even if individual physics models pass. Result: HOLD (flag), not
+    # outright reject — the lot may still be good, but it cannot ship without
+    # a process engineer signing off.
     for step, chk in checkpoints.items():
         drift = chk.physics_outputs.process_sigma_drift
         if drift > 3.0:
@@ -71,12 +73,12 @@ def run_debate(lot: LotState) -> DebateResolution:
                 triggered=True,
                 rule_fired=2,
                 rule_description="Process beats specification — SPC drift >3σ overrides spec compliance",
-                final_decision="kill",
+                final_decision="flag",
                 override_applied=True,
                 reasoning=(
                     f"Step {step} ({chk.name}): SPC shows process drifted {drift:.1f}σ from centre. "
                     "A process drifting 3σ today will be out of specification tomorrow. "
-                    "Rule 2 fires — specification compliance is overridden."
+                    "Rule 2 fires — hold for additional inspection while the process is brought back under control."
                 ),
                 evidence={"step": step, "sigma_drift": drift},
             )

@@ -58,18 +58,18 @@ def _call_anthropic(context: dict) -> dict:
 
     model_id = os.environ.get("PACKGUARD_MODEL", "claude-opus-4-7")
 
-    response = client.messages.create(
-        model=model_id,
-        max_tokens=1500,
-        temperature=0,          # CRITICAL: temperature=0 for determinism
-        system=SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": json.dumps(context, default=str)
-            }
-        ],
-    )
+    # Build kwargs — newer Claude 4+ models reject `temperature`. We pass it
+    # only for older sonnet-3.x / opus-3.x model ids that still support it.
+    kwargs = {
+        "model": model_id,
+        "max_tokens": 4000,   # was 1500 — caused truncated JSON on debate scenarios
+        "system": SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": json.dumps(context, default=str)}],
+    }
+    if "claude-3" in model_id or "claude-instant" in model_id:
+        kwargs["temperature"] = 0  # deterministic on legacy models
+
+    response = client.messages.create(**kwargs)
 
     raw = response.content[0].text
 
@@ -190,6 +190,27 @@ def run_orchestrator(lot_dict: dict) -> dict:
         mapped = {"kill": "reject", "flag": "hold", "pass": "ship"}
         report["final_decision"] = mapped.get(debate_result.final_decision, report.get("final_decision"))
         report["debate_override"] = True
+
+    # Always populate `overall_decision` (UI's banner reads this name).
+    report.setdefault("overall_decision", report.get("final_decision") or final_decision)
+
+    # ── 8b. Authoritative debate_log ─────────────────────────────────────────
+    # Replace any LLM-generated debate_log with one built from the actual
+    # debate result. The LLM was occasionally mismatching rule_number with
+    # rule_name; this guarantees the UI's purple log box reflects the truth.
+    if debate_result.triggered:
+        report["debate_log"] = [{
+            "rule_number": debate_result.rule_fired,
+            "rule_name":   debate_result.rule_description,
+            "tool_a":      "Physics",
+            "tool_a_says": "See physics output",
+            "tool_b":      "CV",
+            "tool_b_says": "See CV output",
+            "winner":      debate_result.final_decision,
+            "reason":      debate_result.reasoning,
+        }]
+    else:
+        report["debate_log"] = []
 
     # ── 9. Inject cost saved ─────────────────────────────────────────────────
     if not report.get("cost_saved_usd"):

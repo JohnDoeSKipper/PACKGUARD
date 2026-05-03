@@ -134,7 +134,7 @@ class TestDebateProtocol:
             pytest.fail("Rule 1 fired despite high CV confidence")
 
     def test_rule_2_spc_drift(self):
-        """Rule 2: SPC drift >3σ overrides spec compliance."""
+        """Rule 2: SPC drift >3σ overrides spec compliance → HOLD for review."""
         chk = checkpoint_with(step=3, p_fail=0.0001, drift=3.5,
                                failure_mode="imc_wire_bond")
         lot = make_lot(checkpoints=[
@@ -145,7 +145,9 @@ class TestDebateProtocol:
         result = run_debate(lot)
         assert result.triggered is True
         assert result.rule_fired == 2
-        assert result.final_decision == "kill"
+        # Rule 2 holds the lot for inspection rather than rejecting outright —
+        # the process is unstable but the lot itself may still be good.
+        assert result.final_decision == "flag"
         assert "3σ" in result.reasoning or "drift" in result.reasoning.lower()
 
     def test_rule_2_borderline_drift_does_not_fire(self):
